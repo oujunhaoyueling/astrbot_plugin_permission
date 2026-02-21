@@ -1,7 +1,7 @@
 name: astrbot_plugin_permission
-display_name: 权限管理插件，管理你的权限！具体请看readme
+display_name: AstrBot 权限管理插件
 author: 月凌
-description: 
+description: 权限管理插件，管理你的权限！具体请看readme
 version: 1.0.0
 repo: https://github.com/oujunhaoyueling/astrbot_plugin_permission
 support_platforms:
