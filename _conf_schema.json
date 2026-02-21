@@ -1,0 +1,20 @@
+{
+    "admin_qq": {
+        "description": "管理员QQ号",
+        "type": "string",
+        "hint": "请输入管理员的QQ号，多个请用英文逗号分隔",
+        "default": ""
+    },
+    "web_username": {
+        "description": "WebUI 登录用户名",
+        "type": "string",
+        "hint": "访问权限管理页面时使用的用户名",
+        "default": "admin"
+    },
+    "web_password": {
+        "description": "WebUI 登录密码",
+        "type": "string",
+        "hint": "访问权限管理页面时使用的密码（首次启动后可在数据库中修改）",
+        "default": "admin"
+    }
+}
