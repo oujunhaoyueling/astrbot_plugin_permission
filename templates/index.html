@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>请主人温柔的控制权限喵～</title>
+    <!-- 字体与图标库 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            min-height: 100vh;
+            padding: 12px;
+            transition: background 0.3s ease, color 0.2s;
+        }
+
+        /* 🌞 默认天蓝色渐变主题 */
+        body.light-theme {
+            background: linear-gradient(145deg, #d9f0ff 0%, #b0e0ff 100%);
+            color: #1e3b5c;
+        }
+
+        body.light-theme .panel {
+            background: rgba(255, 255, 255, 0.75);
+            border: 2px solid #d4eeff;
+            box-shadow: 0 20px 40px -10px rgba(70, 130, 200, 0.3), 0 0 0 3px #ffffff inset;
+        }
+
+        body.light-theme .header {
+            background: #cde8ff;
+            border: 3px solid white;
+            box-shadow: 0 6px 0 #91b8d9;
+        }
+
+        body.light-theme .header-left h1 {
+            color: #26648c;
+            text-shadow: 2px 2px 0 #c3e2ff;
+        }
+
+        /* 主题切换按钮 (霓虹风格) */
+        body.light-theme .theme-toggle {
+            background: none; /* 由button样式覆盖 */
+            border: none;
+        }
+        
+        body.light-theme .user-info {
+            background: white;
+            box-shadow: 0 4px 0 #9ab9d9;
+            border: 2px solid #d1ebff;
+        }
+
+        body.light-theme .user-left span {
+            color: #1d4c73;
+        }
+
+        body.light-theme .user-left i {
+            color: #4f8db3;
+        }
+
+        body.light-theme .logout {
+            background: #d8edff;
+            color: #2b608a;
+            text-decoration: none;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-weight: 600;
+        }
+
+        body.light-theme .search-wrapper {
+            background: white;
+            box-shadow: 0 5px 0 #9ebed9, 0 0 0 3px #d4edff;
+        }
+
+        body.light-theme .search-wrapper i {
+            color: #5f9dc9;
+        }
+
+        body.light-theme .hint-tag {
+            background: #c5e2ff;
+            border: 2px solid white;
+            color: #144a70;
+        }
+
+        body.light-theme .plugin-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 3px solid white;
+            box-shadow: 0 6px 0 #9bb9d0, 0 12px 20px -6px #a6c8e6;
+        }
+
+        body.light-theme .plugin-header {
+            background: #cde4ff;
+            border: 2px solid white;
+        }
+
+        body.light-theme .plugin-header i {
+            color: #4982b3;
+        }
+
+        body.light-theme .plugin-header h2 {
+            color: #1d4c73;
+        }
+
+        body.light-theme .command-row {
+            background: #f0f9ff;
+            border: 2px solid white;
+            box-shadow: 0 4px 0 #9fb7d0, 0 2px 8px #c9e0f5;
+        }
+
+        body.light-theme .command-label {
+            color: #1b4a6b;
+        }
+
+        body.light-theme .command-label i {
+            color: #5f99c2;
+        }
+
+        body.light-theme select {
+            background: #ffffff;
+            border: 2px solid white;
+            color: #173e5c;
+            box-shadow: 0 3px 0 #8db0cc, 0 2px 8px #b8d6f0;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%234282b5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+        }
+
+        body.light-theme .no-match {
+            background: #dbefff;
+            border: 4px dashed #93c1e0;
+            color: #2a6085;
+        }
+
+        body.light-theme .footer-decoration i {
+            color: #7ba9cc;
+        }
+
+        /* 🌙 深紫色渐变主题 */
+        body.dark-theme {
+            background: linear-gradient(145deg, #2a1b3d 0%, #3c1e4a 100%);
+            color: #eeddff;
+        }
+
+        body.dark-theme .panel {
+            background: rgba(30, 15, 40, 0.8);
+            border: 2px solid #6b4f8c;
+            box-shadow: 0 20px 40px -10px #1a0b28, 0 0 0 3px #4a2d62 inset;
+        }
+
+        body.dark-theme .header {
+            background: #37274d;
+            border: 3px solid #a07fc9;
+            box-shadow: 0 6px 0 #281d3a;
+        }
+
+        body.dark-theme .header-left h1 {
+            color: #cfb3ff;
+            text-shadow: 2px 2px 0 #3a264d;
+        }
+
+        body.dark-theme .user-info {
+            background: #2e1f40;
+            box-shadow: 0 4px 0 #1d112b;
+            border: 2px solid #8365ad;
+        }
+
+        body.dark-theme .user-left span {
+            color: #dac0ff;
+        }
+
+        body.dark-theme .user-left i {
+            color: #b592ed;
+        }
+
+        body.dark-theme .logout {
+            background: #4d3668;
+            color: #e2cdff;
+            border: 2px solid transparent;
+        }
+
+        body.dark-theme .search-wrapper {
+            background: #2f2043;
+            box-shadow: 0 5px 0 #1d122b, 0 0 0 3px #7355a3;
+        }
+
+        body.dark-theme .search-wrapper i {
+            color: #ba9df5;
+        }
+
+        body.dark-theme .search-box {
+            color: #f0e2ff;
+        }
+
+        body.dark-theme .search-box::placeholder {
+            color: #8a73a8;
+        }
+
+        body.dark-theme .hint-tag {
+            background: #412f58;
+            border: 2px solid #9b7ac7;
+            color: #e3ceff;
+        }
+
+        body.dark-theme .plugin-card {
+            background: rgba(40, 25, 55, 0.8);
+            border: 3px solid #8b6bb3;
+            box-shadow: 0 6px 0 #3e2b52, 0 12px 20px -6px #1e102b;
+        }
+
+        body.dark-theme .plugin-header {
+            background: #493561;
+            border: 2px solid #b28eed;
+        }
+
+        body.dark-theme .plugin-header i {
+            color: #c8a9ff;
+        }
+
+        body.dark-theme .plugin-header h2 {
+            color: #e5ceff;
+        }
+
+        body.dark-theme .command-row {
+            background: #312348;
+            border: 2px solid #8a69b5;
+            box-shadow: 0 4px 0 #3a274f, 0 2px 8px #2c193f;
+        }
+
+        body.dark-theme .command-label {
+            color: #dec6ff;
+        }
+
+        body.dark-theme .command-label i {
+            color: #ba92ed;
+        }
+
+        body.dark-theme select {
+            background: #3e2b56;
+            border: 2px solid #a986d9;
+            color: #f0dcff;
+            box-shadow: 0 3px 0 #2d1d3f, 0 2px 8px #200e2e;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23c4a0ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+        }
+
+        body.dark-theme .no-match {
+            background: #38294b;
+            border: 4px dashed #8566b0;
+            color: #d8b9ff;
+        }
+
+        body.dark-theme .footer-decoration i {
+            color: #9a7fc2;
+        }
+
+        /* ===== 基础布局 ===== */
+        .panel {
+            max-width: 1200px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+            border-radius: 40px 40px 35px 35px;
+            padding: 20px 18px;
+            transition: background 0.2s, border 0.2s;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 18px 18px;
+            border-radius: 40px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .header-left h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            white-space: nowrap;
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+
+        .header-left h1 i {
+            margin-right: 5px;
+        }
+
+        /* ===== 参照灵袋鼠样式的按钮 ===== */
+        /* 基础按钮样式 - 应用于所有主要按钮 */
+        .btn-gradient {
+            align-items: center;
+            background-image: linear-gradient(144deg, #AF40FF, #5B42F3 50%, #00DDEB);
+            border: 0;
+            border-radius: 8px;
+            box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+            box-sizing: border-box;
+            color: #FFFFFF;
+            display: flex;
+            font-family: 'Quicksand', sans-serif;
+            font-size: 18px;
+            justify-content: center;
+            line-height: 1em;
+            max-width: 100%;
+            min-width: 140px;
+            padding: 3px;
+            text-decoration: none;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .btn-gradient:active,
+        .btn-gradient:hover {
+            outline: 0;
+        }
+
+        .btn-gradient span {
+            background-color: rgb(5, 6, 45);
+            padding: 12px 24px;
+            border-radius: 6px;
+            width: 100%;
+            height: 100%;
+            transition: 300ms;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-gradient:hover span {
+            background: none;
+        }
+
+        .btn-gradient:active {
+            transform: scale(0.9);
+        }
+
+        /* 主题切换按钮 - 继承btn-gradient但调整尺寸 */
+        .theme-toggle {
+            min-width: 50px;
+            width: 50px;
+            height: 50px;
+            padding: 3px;
+            margin-left: 8px;
+        }
+
+        .theme-toggle span {
+            padding: 0;
+            background-color: rgb(5, 6, 45);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+        }
+
+        /* 保存按钮 - 完全按照渐变按钮 */
+        .submit-btn {
+            border: 0;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        /* 用户登出按钮 - 保持原样，但用a标签模拟 */
+        .logout {
+            transition: 0.1s;
+        }
+
+        /* 其他元素保持之前的结构 */
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-radius: 40px;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .user-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-left span {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .user-left i {
+            font-size: 1.5rem;
+        }
+
+        .search-section {
+            margin: 15px 0 18px;
+            width: 100%;
+        }
+
+        .search-wrapper {
+            border-radius: 60px;
+            padding: 4px 4px 4px 18px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .search-wrapper i {
+            font-size: 1.3rem;
+            margin-right: 5px;
+            flex-shrink: 0;
+        }
+
+        .search-box {
+            border: none;
+            padding: 10px 0 10px 5px;
+            font-size: 1rem;
+            width: 100%;
+            min-width: 0;
+            background: transparent;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 500;
+        }
+
+        .search-box:focus {
+            outline: none;
+        }
+
+        .hint-tag {
+            margin-bottom: 15px;
+            padding: 8px 16px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.95rem;
+            width: auto;
+            max-width: 100%;
+        }
+
+        .plugins-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 15px;
+        }
+
+        .plugin-card {
+            border-radius: 35px 35px 30px 30px;
+            padding: 15px 15px 18px;
+            transition: background 0.2s;
+        }
+
+        .plugin-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 8px 16px;
+            border-radius: 60px;
+        }
+
+        .plugin-header i {
+            font-size: 1.6rem;
+            flex-shrink: 0;
+        }
+
+        .plugin-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            word-break: break-word;
+        }
+
+        .command-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-radius: 30px;
+            padding: 14px 16px;
+            transition: background 0.2s;
+            margin-bottom: 8px;
+        }
+
+        .command-label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .command-label i {
+            font-size: 1.3rem;
+            width: 24px;
+        }
+
+        .command-select {
+            width: 100%;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 18px;
+            border-radius: 40px;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            appearance: none;
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 16px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        select:focus {
+            outline: none;
+        }
+
+        .no-match {
+            border-radius: 60px;
+            padding: 25px 15px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .no-match i {
+            font-size: 2.2rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .footer-decoration {
+            text-align: center;
+            margin-top: 25px;
+            opacity: 0.7;
+        }
+
+        .footer-decoration i {
+            font-size: 1.6rem;
+            margin: 0 5px;
+            transition: color 0.2s;
+        }
+
+        @media (max-width: 380px) {
+            .header-left {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .btn-gradient {
+                min-width: 120px;
+            }
+            .user-info {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+        }
+
+        @media (min-width: 800px) {
+            .header {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .header-left {
+                width: auto;
+                flex: 1;
+            }
+            .user-info {
+                width: auto;
+                min-width: 260px;
+            }
+            .command-row {
+                flex-direction: row;
+                align-items: center;
+                padding: 5px 10px 5px 20px;
+            }
+            .command-label {
+                width: 200px;
+            }
+            .command-select {
+                margin-left: 8px;
+                flex: 1;
+            }
+            .panel {
+                padding: 28px 32px;
+            }
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <div class="panel">
+        <div class="header">
+            <div class="header-left">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h1>
+                        <i class="fas fa-cat"></i> 指令权限
+                    </h1>
+                    <!-- 主题切换按钮 - 应用渐变按钮样式 -->
+                    <button class="btn-gradient theme-toggle" id="themeToggleBtn" onclick="toggleTheme()">
+                        <span id="themeIcon"><i class="fas fa-moon"></i></span>
+                    </button>
+                </div>
+                <!-- 保存按钮 - 应用渐变按钮样式 -->
+                <button type="submit" form="permForm" class="btn-gradient submit-btn">
+                    <span><i class="fas fa-paw"></i> 保存</span>
+                </button>
+            </div>
+            <div class="user-info">
+                <div class="user-left">
+                    <i class="fas fa-user-circle"></i>
+                    <span> {{ username }} </span>
+                </div>
+                <a href="/logout" class="logout"><i class="fas fa-door-closed"></i> 登出</a>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" class="search-box" placeholder="搜索插件或指令..." oninput="filterPlugins()">
+                <i class="fas fa-crown" style="font-size: 1.4rem; margin-right: 8px; flex-shrink: 0;"></i>
+            </div>
+        </div>
+
+        <div class="hint-tag">
+            <i class="fas fa-shield-alt"></i> 为每个指令设置所需的最低权限等级
+        </div>
+
+        <form action="/save_permissions" method="post" id="permForm">
+            <div id="pluginsContainer" class="plugins-grid">
+                {% for plugin in plugin_data %}
+                <div class="plugin-card" data-plugin-name="{{ plugin.name }}">
+                    <div class="plugin-header">
+                        <i class="fas fa-cubes"></i>
+                        <h2>{{ plugin.name }}</h2>
+                    </div>
+                    <div class="commands-container">
+                        {% for cmd in plugin.commands %}
+                        <div class="command-row" data-command-name="{{ cmd.name }}">
+                            <span class="command-label">
+                                <i class="fas fa-terminal"></i> {{ cmd.name }}
+                            </span>
+                            <div class="command-select">
+                                <select name="plugin_{{ plugin.name }}_cmd_{{ cmd.name }}">
+                                    {% for level_name, level_value in PERMISSION_LEVELS.items() %}
+                                    <option value="{{ level_value }}" {% if cmd.level == level_value %}selected{% endif %}>
+                                        {{ level_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="noMatchMessage" class="no-match" style="display: none;">
+                <i class="fas fa-cloud"></i> 没有找到匹配的插件或指令
+            </div>
+        </form>
+
+        <div class="footer-decoration">
+            <i class="fas fa-cat"></i>
+            <i class="fas fa-star"></i>
+            <i class="fas fa-heart"></i>
+            <i class="fas fa-cat"></i>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon').querySelector('i');
+            
+            if (body.classList.contains('light-theme')) {
+                body.classList.remove('light-theme');
+                body.classList.add('dark-theme');
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                body.classList.remove('dark-theme');
+                body.classList.add('light-theme');
+                themeIcon.className = 'fas fa-moon';
+            }
+        }
+
+        function filterPlugins() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            const plugins = document.querySelectorAll('.plugin-card');
+            let anyVisible = false;
+
+            plugins.forEach(plugin => {
+                const pluginName = plugin.getAttribute('data-plugin-name').toLowerCase();
+                const commandRows = plugin.querySelectorAll('.command-row');
+
+                let pluginMatch = searchText === '' || pluginName.includes(searchText);
+
+                if (!pluginMatch) {
+                    for (let row of commandRows) {
+                        const cmdName = row.getAttribute('data-command-name').toLowerCase();
+                        if (cmdName.includes(searchText)) {
+                            pluginMatch = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (pluginMatch) {
+                    plugin.style.display = 'block';
+                    anyVisible = true;
+
+                    if (!pluginName.includes(searchText) && searchText !== '') {
+                        commandRows.forEach(row => {
+                            const cmdName = row.getAttribute('data-command-name').toLowerCase();
+                            row.style.display = cmdName.includes(searchText) ? 'flex' : 'none';
+                        });
+                    } else {
+                        commandRows.forEach(row => row.style.display = 'flex');
+                    }
+                } else {
+                    plugin.style.display = 'none';
+                }
+            });
+
+            const noMatchMsg = document.getElementById('noMatchMessage');
+            noMatchMsg.style.display = anyVisible ? 'none' : 'block';
+        }
+
+        window.onload = function() {
+            filterPlugins();
+            const themeIcon = document.getElementById('themeIcon').querySelector('i');
+            if (document.body.classList.contains('light-theme')) {
+                themeIcon.className = 'fas fa-moon';
+            } else {
+                themeIcon.className = 'fas fa-sun';
+            }
+        };
+    </script>
+</body>
+</html>
