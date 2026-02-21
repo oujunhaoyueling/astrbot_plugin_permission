@@ -14,7 +14,22 @@
     "web_password": {
         "description": "WebUI 登录密码",
         "type": "string",
-        "hint": "访问权限管理页面时使用的密码（首次启动后可在数据库中修改）",
+        "hint": "访问权限管理页面时使用的密码（首次登录强制修改）",
         "default": "admin"
+    },
+    "web_host": {
+        "description": "WebUI 监听地址",
+        "type": "string",
+        "hint": "127.0.0.1 仅本地访问，0.0.0.0 允许公网访问（更不安全）",
+        "default": "127.0.0.1",
+        "options": ["127.0.0.1", "0.0.0.0"]
+    },
+    "web_port": {
+        "description": "WebUI 监听端口",
+        "type": "int",
+        "hint": "请确保端口未被占用",
+        "default": 5555,
+        "min": 1024,
+        "max": 65535
     }
 }
