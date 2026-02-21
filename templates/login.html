@@ -15,60 +15,133 @@
         .login-container {
             background-color: white;
             padding: 30px;
-            border-radius: 5px;
+            border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 300px;
+            width: 350px;
         }
         h1 {
             text-align: center;
             color: #333;
+            margin-bottom: 30px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: center;
         }
         label {
             display: block;
             margin: 10px 0 5px;
             color: #555;
+            font-weight: bold;
         }
         input[type="text"],
         input[type="password"] {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             box-sizing: border-box;
             border: 1px solid #ccc;
-            border-radius: 3px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
         }
         button {
             width: 100%;
-            padding: 10px;
-            background-color: #4CAF50;
+            padding: 12px;
+            background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 3px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-top: 15px;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
         }
         .error {
-            color: red;
+            color: #dc3545;
             text-align: center;
-            margin-top: 10px;
+            margin-top: 15px;
+            padding: 8px;
+            background-color: #f8d7da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .info {
+            color: #6c757d;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <h1>权限管理登录</h1>
+        
+        {% if need_change %}
+        <div class="warning">
+            ⚠️ 首次登录或使用默认密码，请修改密码
+        </div>
+        {% endif %}
+        
         <form action="/login" method="post">
             <label for="username">用户名</label>
-            <input type="text" id="username" name="username" required>
-            <label for="password">密码</label>
+            <input type="text" id="username" name="username" value="{{ username }}" required {% if need_change %}readonly{% endif %} autofocus>
+            
+            <label for="password">{{ "当前密码" if need_change else "密码" }}</label>
             <input type="password" id="password" name="password" required>
-            <button type="submit">登录</button>
+            
+            {% if need_change %}
+            <label for="new_password">新密码</label>
+            <input type="password" id="new_password" name="new_password" required minlength="6">
+            <label for="confirm_password">确认新密码</label>
+            <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+            {% endif %}
+            
+            <button type="submit">{{ "修改并登录" if need_change else "登录" }}</button>
         </form>
+        
         {% if error %}
         <div class="error">{{ error }}</div>
         {% endif %}
+        
+        <div class="info">
+            {% if need_change %}
+            首次登录请设置新密码（至少6位）
+            {% else %}
+            默认用户名密码为 admin/admin
+            {% endif %}
+        </div>
     </div>
+
+    {% if need_change %}
+    <script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const newPass = document.getElementById('new_password').value;
+            const confirmPass = document.getElementById('confirm_password').value;
+            
+            if (newPass !== confirmPass) {
+                e.preventDefault();
+                alert('两次输入的新密码不一致！');
+            } else if (newPass.length < 6) {
+                e.preventDefault();
+                alert('密码长度至少为6位！');
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 </html>
