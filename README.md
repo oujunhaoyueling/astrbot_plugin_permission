@@ -23,7 +23,7 @@
 1. 将本插件仓库克隆至 data/plugins/ 目录：
    ```bash
    cd data/plugins
-   git clone https://github.com/your-repo/astrbot_plugin_permission.git
+   git clone https://github.com/oujunhaoyueling/astrbot_plugin_permission.git
    ```
 2. 重启 AstrBot 或重载插件。
 
@@ -81,9 +81,9 @@
 |----------|------|------|
 | `default` | 0 | 默认用户等级 |
 | `member`  | 1 | 普通成员 |
-| `moderator` | 2 | 协管员 |
-| `admin` | 3 | 管理员 |
-| `super_admin` | 4 | 超级管理员（自动授予管理员QQ） |
+| `moderator` | 2 | 高级一点的成员 |
+| `admin` | 3 | 再高级一点（） |
+| `super_admin` | 4 | 超级管理员（请在AstrBot WebUI里的配置项里配置管理员QQ） |
 
 ## 6.指令说明
 本插件提供一个调试指令（仅在开发时可用）：
