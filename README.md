@@ -23,7 +23,7 @@
 1. 将本插件仓库克隆至 data/plugins/ 目录：
    ```bash
    cd data/plugins
-   git clone https://github.com/oujunhaoyueling/astrbot_plugin_permission.git
+   git clone https://github.com/your-repo/astrbot_plugin_permission.git
    ```
 2. 重启 AstrBot 或重载插件。
 
@@ -81,9 +81,9 @@
 |----------|------|------|
 | `default` | 0 | 默认用户等级 |
 | `member`  | 1 | 普通成员 |
-| `moderator` | 2 | 高级一点的成员 |
-| `admin` | 3 | 再高级一点（） |
-| `super_admin` | 4 | 超级管理员（请在AstrBot WebUI里的配置项里配置管理员QQ） |
+| `moderator` | 2 | 协管员 |
+| `admin` | 3 | 管理员 |
+| `super_admin` | 4 | 超级管理员（自动授予管理员QQ） |
 
 ## 6.指令说明
 本插件提供一个调试指令（仅在开发时可用）：
@@ -92,14 +92,17 @@
 ## 7.依赖
 - **Python 3.8+**
 - **AstrBot 4.17+**
-- **fastapi**、**uvicorn**、**jinja2**
+- aiosqlite>=0.19.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+jinja2>=3.1.0
 
 ## 8.注意事项
 - 管理员QQ在 `admin_qq` 中配置后，这些用户自动获得 `super_admin` 权限，无需在 `permissions` 表中额外设置。
 - 插件需要**重载**才能应用配置更改。
 
 ## 9.反馈与贡献
-如有问题或建议，欢迎提交 [Issue](https://github.com/oujunhaoyueling/astrbot_plugin_permission/issues) 或 Pull Request。
+如有问题或建议，欢迎提交 [Issue](链接) 或 Pull Request。
 
 ---
 

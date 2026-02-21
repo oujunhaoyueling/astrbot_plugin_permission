@@ -1,14 +1,14 @@
 import os
 import threading
 import asyncio
-import sqlite3
 import traceback
 import collections
 import hashlib
 import secrets
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 
+import aiosqlite
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
@@ -37,7 +37,7 @@ NAME_TO_LEVEL = PERMISSION_LEVELS
 
 PLUGIN_DATA_DIR = Path(get_astrbot_data_path()) / "plugin_data" / "permission_plugin"
 PLUGIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_FILE = str(PLUGIN_DATA_DIR / "permissions.db")
+DATABASE_PATH = PLUGIN_DATA_DIR / "permissions.db"
 
 PLUGIN_DIR = Path(__file__).parent
 TEMPLATES_DIR = PLUGIN_DIR / "templates"
@@ -53,10 +53,9 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-_plugin_instance = None
-
 
 def get_password_hash(password: str, salt: str = None) -> Tuple[str, str]:
+    """使用 pbkdf2_sha256 哈希密码，返回 (salt, hash)"""
     if salt is None:
         salt = secrets.token_hex(16)
     key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
@@ -64,8 +63,9 @@ def get_password_hash(password: str, salt: str = None) -> Tuple[str, str]:
 
 
 def verify_password(password: str, salt: str, password_hash: str) -> bool:
+    """验证密码，使用防时序攻击比较"""
     _, hash_ = get_password_hash(password, salt)
-    return hash_ == password_hash
+    return secrets.compare_digest(hash_, password_hash)
 
 
 def is_admin(sender_id: str, admin_list: List[str]) -> bool:
@@ -77,9 +77,10 @@ def is_admin(sender_id: str, admin_list: List[str]) -> bool:
 class PermissionManager(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        global _plugin_instance
-        _plugin_instance = self
-
+        
+        # 将实例存储到 app.state 中，供路由使用
+        app.state.plugin_instance = self
+        
         self.config = config
         admin_qq_str = config.get("admin_qq", "")
         self.admin_qq_list = [qq.strip() for qq in admin_qq_str.split(",") if qq.strip()]
@@ -87,16 +88,23 @@ class PermissionManager(Star):
 
         self.cmd_permissions: Dict[Tuple[str, str], int] = {}
         self.plugin_commands: Dict[str, List[str]] = {}
+        self._cmd_permissions_loaded = False
+        self._plugin_commands_loaded = False
 
         self.server = None
         self.server_thread = None
 
-        self.init_database()
-        self.init_auth()
-        self.load_command_permissions()
-        self.build_command_map_stable()
+        # 初始化事件循环
+        self.loop = asyncio.get_event_loop()
 
-        secret_key = self.get_or_create_secret_key()
+        # 初始化数据库（同步，仅在启动时运行）
+        self.loop.run_until_complete(self.init_database())
+        self.loop.run_until_complete(self.init_auth())
+        self.loop.run_until_complete(self.load_command_permissions())
+        self.loop.run_until_complete(self.build_command_map_stable())
+
+        # 设置 Session 密钥
+        secret_key = self.loop.run_until_complete(self.get_or_create_secret_key())
         app.add_middleware(SessionMiddleware, secret_key=secret_key, max_age=3600)
 
         self.start_web_server()
@@ -107,142 +115,154 @@ class PermissionManager(Star):
             for handler in star_handlers_registry:
                 if handler.handler_module_path == __file__:
                     logger.debug(f"本插件已注册处理器: {handler.handler_name}")
-        except:
+        except Exception:
             pass
 
-    def init_database(self):
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
+    async def _execute_db(self, callback, *args, **kwargs):
+        """在线程池中执行同步数据库操作（备用，主要使用 aiosqlite）"""
+        # 注意：此方法保留用于兼容，新代码应直接使用 aiosqlite
+        return await asyncio.to_thread(callback, *args, **kwargs)
 
-        # 用户权限表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='permissions'")
-        if cursor.fetchone():
-            cursor.execute("PRAGMA table_info(permissions)")
-            columns = [col[1] for col in cursor.fetchall()]
-            if 'user_id' not in columns:
-                cursor.execute("DROP TABLE permissions")
-                logger.warning("检测到 permissions 表结构异常，已删除重建")
-                cursor.execute('''
+    async def init_database(self):
+        """初始化数据库表（异步）"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            # 用户权限表
+            async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='permissions'") as cursor:
+                table_exists = await cursor.fetchone()
+            
+            if table_exists:
+                async with db.execute("PRAGMA table_info(permissions)") as cursor:
+                    columns = [col[1] for col in await cursor.fetchall()]
+                if 'user_id' not in columns:
+                    await db.execute("DROP TABLE permissions")
+                    logger.warning("检测到 permissions 表结构异常，已删除重建")
+                    await db.execute('''
+                        CREATE TABLE permissions (
+                            user_id TEXT PRIMARY KEY,
+                            level INTEGER NOT NULL DEFAULT 0
+                        )
+                    ''')
+            else:
+                await db.execute('''
                     CREATE TABLE permissions (
                         user_id TEXT PRIMARY KEY,
                         level INTEGER NOT NULL DEFAULT 0
                     )
                 ''')
-        else:
-            cursor.execute('''
-                CREATE TABLE permissions (
-                    user_id TEXT PRIMARY KEY,
-                    level INTEGER NOT NULL DEFAULT 0
-                )
-            ''')
 
-        # 群组权限表（新增）
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='group_permissions'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE group_permissions (
-                    group_id TEXT PRIMARY KEY,
-                    level INTEGER NOT NULL DEFAULT 0
-                )
-            ''')
-            logger.info("已创建群组权限表")
+            # 群组权限表
+            async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='group_permissions'") as cursor:
+                group_table_exists = await cursor.fetchone()
+            if not group_table_exists:
+                await db.execute('''
+                    CREATE TABLE group_permissions (
+                        group_id TEXT PRIMARY KEY,
+                        level INTEGER NOT NULL DEFAULT 0
+                    )
+                ''')
+                logger.info("已创建群组权限表")
 
-        # 指令权限表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='command_permissions'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE command_permissions (
-                    plugin_name TEXT NOT NULL,
-                    command_name TEXT NOT NULL,
-                    min_permission_level INTEGER NOT NULL,
-                    PRIMARY KEY (plugin_name, command_name)
-                )
-            ''')
+            # 指令权限表
+            async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='command_permissions'") as cursor:
+                cmd_table_exists = await cursor.fetchone()
+            if not cmd_table_exists:
+                await db.execute('''
+                    CREATE TABLE command_permissions (
+                        plugin_name TEXT NOT NULL,
+                        command_name TEXT NOT NULL,
+                        min_permission_level INTEGER NOT NULL,
+                        PRIMARY KEY (plugin_name, command_name)
+                    )
+                ''')
 
-        # web_auth 表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='web_auth'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE web_auth (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE,
-                    salt TEXT NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+            # web_auth 表
+            async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='web_auth'") as cursor:
+                auth_table_exists = await cursor.fetchone()
+            if not auth_table_exists:
+                await db.execute('''
+                    CREATE TABLE web_auth (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT NOT NULL UNIQUE,
+                        salt TEXT NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
 
-        # settings 表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            ''')
+            # settings 表
+            async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'") as cursor:
+                settings_table_exists = await cursor.fetchone()
+            if not settings_table_exists:
+                await db.execute('''
+                    CREATE TABLE settings (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    )
+                ''')
 
-        conn.commit()
-        conn.close()
+            await db.commit()
         logger.info("权限数据库初始化完成")
 
-    def init_auth(self):
+    async def init_auth(self):
+        """初始化认证信息"""
         username = self.config.get("web_username", "admin")
         password = self.config.get("web_password", "admin")
 
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM web_auth")
-        count = cursor.fetchone()[0]
-        if count == 0:
-            salt, pwd_hash = get_password_hash(password)
-            cursor.execute(
-                "INSERT INTO web_auth (username, salt, password_hash) VALUES (?, ?, ?)",
-                (username, salt, pwd_hash)
-            )
-            conn.commit()
-            logger.info("已创建初始 WebUI 登录账户")
-        conn.close()
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            async with db.execute("SELECT COUNT(*) FROM web_auth") as cursor:
+                count = (await cursor.fetchone())[0]
+            
+            if count == 0:
+                salt, pwd_hash = get_password_hash(password)
+                await db.execute(
+                    "INSERT INTO web_auth (username, salt, password_hash) VALUES (?, ?, ?)",
+                    (username, salt, pwd_hash)
+                )
+                await db.commit()
+                logger.info("已创建初始 WebUI 登录账户")
 
-    def get_or_create_secret_key(self) -> str:
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key='session_secret'")
-        row = cursor.fetchone()
-        if row:
-            key = row[0]
-        else:
-            key = secrets.token_hex(32)
-            cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ('session_secret', key))
-            conn.commit()
-            logger.info("生成了新的会话密钥")
-        conn.close()
+    async def get_or_create_secret_key(self) -> str:
+        """获取或创建会话密钥"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            async with db.execute("SELECT value FROM settings WHERE key='session_secret'") as cursor:
+                row = await cursor.fetchone()
+            
+            if row:
+                key = row[0]
+            else:
+                key = secrets.token_hex(32)
+                await db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ('session_secret', key))
+                await db.commit()
+                logger.info("生成了新的会话密钥")
         return key
 
-    def load_command_permissions(self):
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute("SELECT plugin_name, command_name, min_permission_level FROM command_permissions")
-        rows = cursor.fetchall()
+    async def load_command_permissions(self):
+        """从数据库加载指令权限配置"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            async with db.execute("SELECT plugin_name, command_name, min_permission_level FROM command_permissions") as cursor:
+                rows = await cursor.fetchall()
+        
         self.cmd_permissions = {(row[0], row[1]): row[2] for row in rows}
-        conn.close()
+        self._cmd_permissions_loaded = True
         logger.info(f"已加载 {len(self.cmd_permissions)} 条指令权限配置")
+        return self.cmd_permissions
 
-    def save_command_permissions(self, new_perms: Dict[Tuple[str, str], int]):
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM command_permissions")
-        for (plugin, cmd), level in new_perms.items():
-            cursor.execute(
-                "INSERT INTO command_permissions (plugin_name, command_name, min_permission_level) VALUES (?, ?, ?)",
-                (plugin, cmd, level)
-            )
-        conn.commit()
-        conn.close()
+    async def save_command_permissions(self, new_perms: Dict[Tuple[str, str], int]):
+        """保存指令权限配置到数据库"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            await db.execute("DELETE FROM command_permissions")
+            for (plugin, cmd), level in new_perms.items():
+                await db.execute(
+                    "INSERT INTO command_permissions (plugin_name, command_name, min_permission_level) VALUES (?, ?, ?)",
+                    (plugin, cmd, level)
+                )
+            await db.commit()
+        
         self.cmd_permissions = new_perms
         logger.info(f"已保存 {len(new_perms)} 条指令权限配置")
 
-    def build_command_map_stable(self):
+    async def build_command_map_stable(self):
+        """稳定构建插件指令映射，基于全局处理器注册表"""
         try:
             all_stars = self.context.get_all_stars()
             all_stars = [star for star in all_stars if getattr(star, 'activated', True)]
@@ -274,6 +294,7 @@ class PermissionManager(Star):
                     if cmd and isinstance(cmd, str):
                         cmd_collector[plugin_name].add(cmd)
             self.plugin_commands = {k: sorted(v) for k, v in cmd_collector.items()}
+            self._plugin_commands_loaded = True
             logger.info(f"指令映射构建完成，共收集到 {len(self.plugin_commands)} 个插件的指令")
             for p, cmds in self.plugin_commands.items():
                 logger.debug(f"插件 {p} 指令: {cmds}")
@@ -281,8 +302,34 @@ class PermissionManager(Star):
             logger.error(f"构建指令映射时发生异常: {traceback.format_exc()}")
             self.plugin_commands = {}
 
-    # ---------- 权限查询函数（合并用户和群组等级） ----------
-    def get_effective_level(self, user_id: str, group_id: Optional[str] = None) -> int:
+    async def _get_user_level_from_db(self, user_id: str) -> int:
+        """从数据库获取用户等级"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            async with db.execute("SELECT level FROM permissions WHERE user_id = ?", (user_id,)) as cursor:
+                row = await cursor.fetchone()
+            
+            if row:
+                return row[0]
+            else:
+                # 插入默认用户等级
+                await db.execute(
+                    "INSERT INTO permissions (user_id, level) VALUES (?, ?)",
+                    (user_id, PERMISSION_LEVELS["default"])
+                )
+                await db.commit()
+                return PERMISSION_LEVELS["default"]
+
+    async def _get_group_level_from_db(self, group_id: str) -> int:
+        """从数据库获取群组等级"""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            async with db.execute("SELECT level FROM group_permissions WHERE group_id = ?", (group_id,)) as cursor:
+                row = await cursor.fetchone()
+            
+            if row:
+                return row[0]
+            return PERMISSION_LEVELS["default"]
+
+    async def get_effective_level(self, user_id: str, group_id: Optional[str] = None) -> int:
         """
         获取用户的有效权限等级：
         - 如果用户是管理员（super_admin），直接返回 super_admin
@@ -291,31 +338,13 @@ class PermissionManager(Star):
         if user_id in self.admin_qq_list:
             return PERMISSION_LEVELS["super_admin"]
 
-        user_level = PERMISSION_LEVELS["default"]
-        group_level = PERMISSION_LEVELS["default"]
-
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-
-        # 查询用户等级
-        cursor.execute("SELECT level FROM permissions WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        if row:
-            user_level = row[0]
-        else:
-            # 插入默认用户等级
-            cursor.execute("INSERT INTO permissions (user_id, level) VALUES (?, ?)", (user_id, PERMISSION_LEVELS["default"]))
-            conn.commit()
-
-        # 如果有群组，查询群组等级
-        if group_id:
-            cursor.execute("SELECT level FROM group_permissions WHERE group_id = ?", (group_id,))
-            row = cursor.fetchone()
-            if row:
-                group_level = row[0]
-            # 没有记录则保持 default
-
-        conn.close()
+        # 并发获取用户和群组等级
+        user_level_task = self._get_user_level_from_db(user_id)
+        group_level_task = self._get_group_level_from_db(group_id) if group_id else None
+        
+        user_level = await user_level_task
+        group_level = await group_level_task if group_level_task else PERMISSION_LEVELS["default"]
+        
         return max(user_level, group_level)
 
     # ---------- 授权指令 ----------
@@ -349,21 +378,23 @@ class PermissionManager(Star):
                 return
             level = NAME_TO_LEVEL[level_name]
 
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-
-        if scope == "私聊":
-            # 设置用户等级
-            cursor.execute("INSERT OR REPLACE INTO permissions (user_id, level) VALUES (?, ?)", (target_id, level))
-            conn.commit()
-            conn.close()
-            yield event.plain_result(f"已为用户 {target_id} 设置权限等级为 {LEVEL_TO_NAME[level]} ({level})。")
-        else:  # 群组
-            # 设置群组等级
-            cursor.execute("INSERT OR REPLACE INTO group_permissions (group_id, level) VALUES (?, ?)", (target_id, level))
-            conn.commit()
-            conn.close()
-            yield event.plain_result(f"已为群组 {target_id} 设置权限等级为 {LEVEL_TO_NAME[level]} ({level})。")
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            if scope == "私聊":
+                # 设置用户等级
+                await db.execute(
+                    "INSERT OR REPLACE INTO permissions (user_id, level) VALUES (?, ?)",
+                    (target_id, level)
+                )
+                await db.commit()
+                yield event.plain_result(f"已为用户 {target_id} 设置权限等级为 {LEVEL_TO_NAME[level]} ({level})。")
+            else:  # 群组
+                # 设置群组等级
+                await db.execute(
+                    "INSERT OR REPLACE INTO group_permissions (group_id, level) VALUES (?, ?)",
+                    (target_id, level)
+                )
+                await db.commit()
+                yield event.plain_result(f"已为群组 {target_id} 设置权限等级为 {LEVEL_TO_NAME[level]} ({level})。")
 
     @filter.command("取消授权")
     async def remove_permission(self, event: AstrMessageEvent, scope: str, target_id: str):
@@ -378,27 +409,23 @@ class PermissionManager(Star):
             yield event.plain_result("作用域必须是 '群组' 或 '私聊'。")
             return
 
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-
-        if scope == "私聊":
-            cursor.execute("DELETE FROM permissions WHERE user_id = ?", (target_id,))
-            conn.commit()
-            affected = cursor.rowcount
-            conn.close()
-            if affected:
-                yield event.plain_result(f"已取消用户 {target_id} 的权限设置，恢复为默认等级。")
-            else:
-                yield event.plain_result(f"用户 {target_id} 没有权限设置。")
-        else:  # 群组
-            cursor.execute("DELETE FROM group_permissions WHERE group_id = ?", (target_id,))
-            conn.commit()
-            affected = cursor.rowcount
-            conn.close()
-            if affected:
-                yield event.plain_result(f"已取消群组 {target_id} 的权限设置，恢复为默认等级。")
-            else:
-                yield event.plain_result(f"群组 {target_id} 没有权限设置。")
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            if scope == "私聊":
+                await db.execute("DELETE FROM permissions WHERE user_id = ?", (target_id,))
+                await db.commit()
+                affected = db.total_changes
+                if affected:
+                    yield event.plain_result(f"已取消用户 {target_id} 的权限设置，恢复为默认等级。")
+                else:
+                    yield event.plain_result(f"用户 {target_id} 没有权限设置。")
+            else:  # 群组
+                await db.execute("DELETE FROM group_permissions WHERE group_id = ?", (target_id,))
+                await db.commit()
+                affected = db.total_changes
+                if affected:
+                    yield event.plain_result(f"已取消群组 {target_id} 的权限设置，恢复为默认等级。")
+                else:
+                    yield event.plain_result(f"群组 {target_id} 没有权限设置。")
 
     @filter.command("权限帮助")
     async def perm_help(self, event: AstrMessageEvent):
@@ -420,45 +447,46 @@ class PermissionManager(Star):
             yield event.plain_result("您没有权限查看权限列表。")
             return
 
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
         msg = ""
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            if target is None:
+                # 显示所有用户和群组
+                async with db.execute("SELECT user_id, level FROM permissions") as cursor:
+                    users = await cursor.fetchall()
+                async with db.execute("SELECT group_id, level FROM group_permissions") as cursor:
+                    groups = await cursor.fetchall()
+                
+                msg += "用户权限设置：\n"
+                for uid, lvl in users:
+                    msg += f"  {uid}: {LEVEL_TO_NAME[lvl]} ({lvl})\n"
+                msg += "群组权限设置：\n"
+                for gid, lvl in groups:
+                    msg += f"  {gid}: {LEVEL_TO_NAME[lvl]} ({lvl})\n"
+            else:
+                # 尝试按用户或群组查询
+                async with db.execute("SELECT level FROM permissions WHERE user_id = ?", (target,)) as cursor:
+                    user_row = await cursor.fetchone()
+                if user_row:
+                    msg += f"用户 {target} 权限等级: {LEVEL_TO_NAME[user_row[0]]} ({user_row[0]})\n"
+                
+                async with db.execute("SELECT level FROM group_permissions WHERE group_id = ?", (target,)) as cursor:
+                    group_row = await cursor.fetchone()
+                if group_row:
+                    msg += f"群组 {target} 权限等级: {LEVEL_TO_NAME[group_row[0]]} ({group_row[0]})\n"
+                
+                if not msg:
+                    msg = f"未找到 {target} 的权限设置。"
 
-        if target is None:
-            # 显示所有用户和群组
-            cursor.execute("SELECT user_id, level FROM permissions")
-            users = cursor.fetchall()
-            cursor.execute("SELECT group_id, level FROM group_permissions")
-            groups = cursor.fetchall()
-            msg += "用户权限设置：\n"
-            for uid, lvl in users:
-                msg += f"  {uid}: {LEVEL_TO_NAME[lvl]} ({lvl})\n"
-            msg += "群组权限设置：\n"
-            for gid, lvl in groups:
-                msg += f"  {gid}: {LEVEL_TO_NAME[lvl]} ({lvl})\n"
-        else:
-            # 尝试按用户或群组查询
-            cursor.execute("SELECT level FROM permissions WHERE user_id = ?", (target,))
-            row = cursor.fetchone()
-            if row:
-                msg += f"用户 {target} 权限等级: {LEVEL_TO_NAME[row[0]]} ({row[0]})\n"
-            cursor.execute("SELECT level FROM group_permissions WHERE group_id = ?", (target,))
-            row = cursor.fetchone()
-            if row:
-                msg += f"群组 {target} 权限等级: {LEVEL_TO_NAME[row[0]]} ({row[0]})\n"
-            if not msg:
-                msg = f"未找到 {target} 的权限设置。"
-
-        conn.close()
         yield event.plain_result(msg if msg else "暂无权限设置。")
 
     # ---------- 权限检查拦截器（使用合并等级） ----------
     @filter.event_message_type(filter.EventMessageType.ALL, priority=999)
     async def permission_check(self, event: AstrMessageEvent):
+        """权限检查拦截器"""
         logger.debug("权限检查函数被调用")
         try:
-            if not self.plugin_commands:
-                logger.debug("权限检查：plugin_commands 为空，放行")
+            if not self._plugin_commands_loaded or not self.plugin_commands:
+                logger.debug("权限检查：plugin_commands 未加载或为空，放行")
                 return
 
             sender_id = event.get_sender_id()
@@ -469,14 +497,12 @@ class PermissionManager(Star):
             # 获取群组ID（如果有）
             group_id = event.get_group_id() if hasattr(event, 'get_group_id') else None
 
-            text = event.message_str.strip()
-            logger.debug(f"权限检查：收到消息 '{text}'")
-            if not text:
-                logger.debug("权限检查：空消息，放行")
+            # 使用 event.get_command() 获取纯净指令词（不带前缀）
+            command = event.get_command()
+            if not command:
+                logger.debug("权限检查：无法获取指令词，放行")
                 return
 
-            parts = text.split()
-            command = parts[0]
             logger.debug(f"权限检查：提取指令 '{command}'")
 
             target_plugin = None
@@ -491,7 +517,10 @@ class PermissionManager(Star):
                 return
 
             required_level = self.cmd_permissions.get((target_plugin, command), PERMISSION_LEVELS["default"])
-            effective_level = self.get_effective_level(sender_id, group_id)
+            
+            # 异步获取有效等级
+            effective_level = await self.get_effective_level(sender_id, group_id)
+            
             logger.info(f"权限检查：指令 /{command} 要求等级 {required_level}，用户 {sender_id} 群组 {group_id} 有效等级 {effective_level}")
 
             if effective_level < required_level:
@@ -509,6 +538,7 @@ class PermissionManager(Star):
             logger.error(f"权限检查过程中发生异常: {traceback.format_exc()}")
 
     def start_web_server(self):
+        """启动 Web 服务器"""
         config = uvicorn.Config(
             app,
             host="0.0.0.0",
@@ -527,6 +557,7 @@ class PermissionManager(Star):
         logger.info("权限管理 WebUI 已启动在 http://localhost:5555")
 
     async def terminate(self):
+        """插件卸载时关闭服务器"""
         if self.server:
             logger.info("正在关闭 WebUI 服务器...")
             self.server.should_exit = True
@@ -537,6 +568,7 @@ class PermissionManager(Star):
 
 # ---------- 登录依赖项 ----------
 async def require_auth(request: Request):
+    """依赖项：检查用户是否已登录"""
     if not request.session.get("authenticated"):
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     return True
@@ -545,20 +577,23 @@ async def require_auth(request: Request):
 # ---------- FastAPI 路由 ----------
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    """显示登录页面"""
     return templates.TemplateResponse("login.html", {"request": request})
 
 
 @app.post("/login")
 async def login(request: Request):
+    """处理登录表单"""
     form = await request.form()
     username = form.get("username", "")
     password = form.get("password", "")
 
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT username, salt, password_hash FROM web_auth WHERE username=?", (username,))
-    row = cursor.fetchone()
-    conn.close()
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        async with db.execute(
+            "SELECT username, salt, password_hash FROM web_auth WHERE username=?", 
+            (username,)
+        ) as cursor:
+            row = await cursor.fetchone()
 
     if row and verify_password(password, row[1], row[2]):
         request.session["authenticated"] = True
@@ -573,19 +608,20 @@ async def login(request: Request):
 
 @app.get("/logout")
 async def logout(request: Request):
+    """登出"""
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(require_auth)])
 async def home(request: Request):
+    """显示权限配置主页（需要登录）"""
     try:
-        global _plugin_instance
-        plugin = _plugin_instance
+        plugin = app.state.plugin_instance
         if plugin is None:
             return HTMLResponse("<h1>500 Internal Server Error</h1><p>插件实例未初始化</p>", status_code=500)
 
-        plugin.load_command_permissions()
+        await plugin.load_command_permissions()
 
         plugin_data = []
         for plugin_name, commands in plugin.plugin_commands.items():
@@ -614,10 +650,10 @@ async def home(request: Request):
 
 @app.post("/save_permissions", dependencies=[Depends(require_auth)])
 async def save_permissions_post(request: Request):
+    """保存权限配置（需要登录）"""
     logger.info("收到保存权限请求")
     try:
-        global _plugin_instance
-        plugin = _plugin_instance
+        plugin = app.state.plugin_instance
         if plugin is None:
             logger.error("插件实例为 None")
             return RedirectResponse(url="/", status_code=303)
@@ -643,7 +679,7 @@ async def save_permissions_post(request: Request):
             except ValueError:
                 logger.warning(f"无法解析权限等级: {value}")
 
-        plugin.save_command_permissions(new_perms)
+        await plugin.save_command_permissions(new_perms)
         return RedirectResponse(url="/", status_code=303)
     except Exception as e:
         logger.error(f"保存权限时发生异常: {traceback.format_exc()}")
