@@ -14,8 +14,8 @@
     "web_password": {
         "description": "WebUI 登录密码",
         "type": "string",
-        "hint": "访问权限管理页面时使用的密码（首次登录强制修改）",
-        "default": "admin"
+        "hint": "首次启动会自动生成随机密码，您可在此修改",
+        "default": ""
     },
     "web_host": {
         "description": "WebUI 监听地址",
