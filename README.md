@@ -99,7 +99,7 @@
 - 插件需要**重载**才能应用配置更改。
 
 ## 9.反馈与贡献
-如有问题或建议，欢迎提交 [Issue](链接) 或 Pull Request。
+如有问题或建议，欢迎提交 [Issue](https://github.com/oujunhaoyueling/astrbot_plugin_permission/issues) 或 Pull Request。
 
 ---
 
