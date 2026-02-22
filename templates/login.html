@@ -11,9 +11,14 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            {% if background %}
+            background-image: url('/backgrounds/{{ background }}');
+            background-size: cover;
+            background-attachment: fixed;
+            {% endif %}
         }
         .login-container {
-            background-color: white;
+            background-color: rgba(255, 255, 255, var(--login-bg-opacity, 1));
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -126,6 +131,19 @@
             {% endif %}
         </div>
     </div>
+
+    <script>
+        (function() {
+            // 从 localStorage 读取透明度值并应用到登录容器
+            const savedOpacity = localStorage.getItem('pluginBgOpacity');
+            if (savedOpacity !== null) {
+                const opacity = parseFloat(savedOpacity);
+                if (!isNaN(opacity) && opacity >= 0 && opacity <= 1) {
+                    document.documentElement.style.setProperty('--login-bg-opacity', opacity);
+                }
+            }
+        })();
+    </script>
 
     {% if need_change %}
     <script>
