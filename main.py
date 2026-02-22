@@ -6,13 +6,15 @@ import hashlib
 import secrets
 import string
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
 import aiosqlite
-from fastapi import FastAPI, Request, HTTPException, Depends, Form
+from fastapi import FastAPI, Request, HTTPException, Depends, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
@@ -34,6 +36,8 @@ except ImportError:
 
 PLUGIN_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = PLUGIN_DATA_DIR / "permissions.db"
+BACKGROUND_DIR = PLUGIN_DATA_DIR / "backgrounds"
+BACKGROUND_DIR.mkdir(exist_ok=True)
 
 PLUGIN_DIR = Path(__file__).parent
 TEMPLATES_DIR = PLUGIN_DIR / "templates"
@@ -56,6 +60,9 @@ MAX_FAILS = 5  # 最大失败次数
 
 app = FastAPI()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# 挂载背景图片目录为静态文件
+app.mount("/backgrounds", StaticFiles(directory=str(BACKGROUND_DIR)), name="backgrounds")
 
 _middleware_added = False
 
@@ -103,6 +110,42 @@ async def verify_csrf(request: Request):
         if not token or not session_token or not secrets.compare_digest(token, session_token):
             raise HTTPException(status_code=403, detail="CSRF token invalid")
     return True
+
+
+# ---------- 背景图片管理 ----------
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+async def get_background_setting() -> Optional[str]:
+    """从数据库获取当前背景图片文件名，不存在返回 None"""
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute("PRAGMA busy_timeout=5000")
+        async with db.execute("SELECT value FROM settings WHERE key='background_image'") as cursor:
+            row = await cursor.fetchone()
+    return row[0] if row else None
+
+async def set_background_setting(filename: str):
+    """更新数据库中的背景图片文件名"""
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute("PRAGMA busy_timeout=5000")
+        await db.execute("BEGIN IMMEDIATE")
+        await db.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            ('background_image', filename)
+        )
+        await db.commit()
+
+async def delete_old_background(exclude_filename: Optional[str] = None):
+    """删除旧的背景图片文件（除了 exclude_filename）"""
+    current = await get_background_setting()
+    if current and current != exclude_filename:
+        old_file = BACKGROUND_DIR / current
+        if old_file.exists():
+            try:
+                old_file.unlink()
+                logger.info(f"已删除旧背景图片: {current}")
+            except Exception as e:
+                logger.error(f"删除旧背景图片失败: {e}")
 
 
 @register("astrbot_plugin_permission", "Your Name", "权限管理插件", "1.0.0", "repo_url")
@@ -650,26 +693,37 @@ async def require_auth(request: Request):
 # ---------- FastAPI 路由 ----------
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+    background = await get_background_setting()
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "error": error,
+            "background": background  # 传递给模板
+        }
+    )
 
 
 @app.post("/login")
-async def login(request: Request, 
-                username: str = Form(...), 
+async def login(request: Request,
+                username: str = Form(...),
                 password: str = Form(...),
                 new_password: str = Form(None),
                 confirm_password: str = Form(None)):
     client_ip = request.client.host
+    background = await get_background_setting()
+
     if not check_login_fails(client_ip, username):
         return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": f"登录失败次数过多，请{FAIL_LOCK_TIME//60}分钟后再试"
+            "error": f"登录失败次数过多，请{FAIL_LOCK_TIME//60}分钟后再试",
+            "background": background
         }, status_code=400)
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.execute("PRAGMA busy_timeout=5000")
         async with db.execute(
-            "SELECT username, salt, password_hash, password_changed FROM web_auth WHERE username=?", 
+            "SELECT username, salt, password_hash, password_changed FROM web_auth WHERE username=?",
             (username,)
         ) as cursor:
             row = await cursor.fetchone()
@@ -678,7 +732,8 @@ async def login(request: Request,
         record_login_fail(client_ip, username)
         return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": "用户名或密码错误"
+            "error": "用户名或密码错误",
+            "background": background
         }, status_code=400)
 
     # 检查是否需要修改密码（默认密码且未修改过）
@@ -688,21 +743,24 @@ async def login(request: Request,
                 "request": request,
                 "error": "请填写新密码和确认密码",
                 "need_change": True,
-                "username": username
+                "username": username,
+                "background": background
             })
         if new_password != confirm_password:
             return templates.TemplateResponse("login.html", {
                 "request": request,
                 "error": "两次输入的密码不一致",
                 "need_change": True,
-                "username": username
+                "username": username,
+                "background": background
             })
         if len(new_password) < 6:
             return templates.TemplateResponse("login.html", {
                 "request": request,
                 "error": "密码长度至少为6位",
                 "need_change": True,
-                "username": username
+                "username": username,
+                "background": background
             })
         # 修改密码
         salt, pwd_hash = get_password_hash(new_password)
@@ -751,12 +809,15 @@ async def home(request: Request):
                 "commands": cmd_list
             })
 
+        background = await get_background_setting()
+
         return templates.TemplateResponse("index.html", {
             "request": request,
             "plugin_data": plugin_data,
             "PERMISSION_LEVELS": PERMISSION_LEVELS,
             "username": request.session.get("username"),
-            "csrf_token": request.session.get("csrf_token", "")
+            "csrf_token": request.session.get("csrf_token", ""),
+            "background": background
         })
     except Exception as e:
         logger.error(f"处理 / 路由时发生异常: {traceback.format_exc()}")
@@ -806,3 +867,59 @@ async def save_permissions_post(request: Request):
 @app.get("/save_permissions", dependencies=[Depends(require_auth), Depends(verify_csrf)])
 async def save_permissions_get():
     return PlainTextResponse("请使用 POST 方法提交表单", status_code=405)
+
+
+# ---------- 背景上传 ----------
+@app.post("/upload_background", dependencies=[Depends(require_auth), Depends(verify_csrf)])
+async def upload_background(file: UploadFile = File(...)):
+    # 验证文件扩展名
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return JSONResponse(
+            {"status": "error", "message": f"不支持的文件类型，允许的类型: {', '.join(ALLOWED_EXTENSIONS)}"},
+            status_code=400
+        )
+
+    # 验证文件大小（异步读取一部分判断）
+    try:
+        contents = await file.read(MAX_FILE_SIZE + 1)
+        if len(contents) > MAX_FILE_SIZE:
+            return JSONResponse(
+                {"status": "error", "message": f"文件大小不能超过 {MAX_FILE_SIZE//1024//1024}MB"},
+                status_code=400
+            )
+    except Exception as e:
+        logger.error(f"读取上传文件失败: {e}")
+        return JSONResponse({"status": "error", "message": "读取文件失败"}, status_code=500)
+
+    # 生成安全的文件名
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
+    save_path = BACKGROUND_DIR / safe_filename
+
+    try:
+        # 保存文件
+        with open(save_path, "wb") as f:
+            f.write(contents)
+
+        # 获取旧的背景文件名
+        old_background = await get_background_setting()
+
+        # 更新数据库
+        await set_background_setting(safe_filename)
+
+        # 删除旧背景文件（如果存在且不是刚刚上传的相同文件）
+        if old_background and old_background != safe_filename:
+            old_file = BACKGROUND_DIR / old_background
+            if old_file.exists():
+                old_file.unlink()
+                logger.info(f"已删除旧背景图片: {old_background}")
+
+        logger.info(f"新背景图片上传成功: {safe_filename}")
+        return JSONResponse({"status": "success", "filename": safe_filename})
+
+    except Exception as e:
+        logger.error(f"保存背景图片失败: {traceback.format_exc()}")
+        # 如果保存失败且已创建文件，尝试删除
+        if save_path.exists():
+            save_path.unlink()
+        return JSONResponse({"status": "error", "message": "保存文件失败"}, status_code=500)
