@@ -1,33 +1,33 @@
 {
     "admin_qq": {
-        "description": "管理员QQ号",
+        "description": "管理员QQ号 (Admin QQ) - Please enter admin QQ numbers, separated by commas",
         "type": "string",
-        "hint": "请输入管理员的QQ号，多个请用英文逗号分隔",
+        "hint": "请输入管理员的QQ号，多个请用英文逗号分隔 / Enter admin QQ numbers, separate multiple with commas",
         "default": ""
     },
     "web_username": {
-        "description": "WebUI 登录用户名",
+        "description": "WebUI 登录用户名 (WebUI Username) - Username for accessing the permission management page",
         "type": "string",
-        "hint": "访问权限管理页面时使用的用户名",
+        "hint": "访问权限管理页面时使用的用户名 / Username for the WebUI login",
         "default": "admin"
     },
     "web_password": {
-        "description": "WebUI 登录密码",
+        "description": "WebUI 登录密码 (WebUI Password) - A random password will be generated on first startup, you can modify it here",
         "type": "string",
-        "hint": "首次启动会自动生成随机密码，您可在此修改",
+        "hint": "首次启动会自动生成随机密码，您可在此修改 / A random password will be generated on first startup, you can change it here",
         "default": ""
     },
     "web_host": {
-        "description": "WebUI 监听地址",
+        "description": "WebUI 监听地址 (WebUI Host) - 127.0.0.1 for local access only, 0.0.0.0 for public access (less secure)",
         "type": "string",
-        "hint": "127.0.0.1 仅本地访问，0.0.0.0 允许公网访问（更不安全）",
+        "hint": "127.0.0.1 仅本地访问，0.0.0.0 允许公网访问（更不安全）/ 127.0.0.1 for local only, 0.0.0.0 for public access (less secure)",
         "default": "127.0.0.1",
         "options": ["127.0.0.1", "0.0.0.0"]
     },
     "web_port": {
-        "description": "WebUI 监听端口",
+        "description": "WebUI 监听端口 (WebUI Port) - Make sure the port is not occupied",
         "type": "int",
-        "hint": "请确保端口未被占用",
+        "hint": "请确保端口未被占用 / Make sure the port is not in use",
         "default": 5555,
         "min": 1024,
         "max": 65535
