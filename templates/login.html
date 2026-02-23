@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>权限管理 - 登录</title>
+    <title data-i18n="login.title">权限管理 - 登录</title>
     <style>
         /* 页面加载淡入动画 */
         body {
@@ -12,6 +12,50 @@
             to { opacity: 1; }
         }
 
+        /* 亮色/暗色主题变量 */
+        :root {
+            --bg-color: #f4f4f4;
+            --container-bg: rgba(255, 255, 255, 0.95);
+            --text-color: #333;
+            --label-color: #555;
+            --input-border: #ccc;
+            --input-focus: #007bff;
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+            --warning-bg: #fff3cd;
+            --warning-border: #ffeeba;
+            --warning-text: #856404;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --info-text: #6c757d;
+            --shadow: rgba(0,0,0,0.1);
+            --transition-speed: 0.3s;
+        }
+        .dark-theme {
+            --bg-color: #1a1a1a;
+            --container-bg: rgba(30, 30, 30, 0.95);
+            --text-color: #e0e0e0;
+            --label-color: #aaa;
+            --input-border: #444;
+            --input-focus: #4d9fff;
+            --button-bg: #4d9fff;
+            --button-hover: #1a73e8;
+            --warning-bg: #332e1a;
+            --warning-border: #665c33;
+            --warning-text: #ffd966;
+            --error-bg: #331f1f;
+            --error-text: #ff8080;
+            --info-text: #aaa;
+            --shadow: rgba(0,0,0,0.3);
+        }
+
+        * {
+            transition: background-color var(--transition-speed) ease,
+                        border-color var(--transition-speed) ease,
+                        color var(--transition-speed) ease,
+                        box-shadow var(--transition-speed) ease;
+        }
+
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -19,34 +63,57 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            background-color: var(--bg-color);
             {% if background %}
             background-image: url('/backgrounds/{{ background }}');
             background-size: cover;
             background-attachment: fixed;
-            {% else %}
-            background-color: #f4f4f4;
             {% endif %}
         }
         .login-container {
-            background-color: rgba(255, 255, 255, var(--login-bg-opacity, 1));
+            background-color: var(--container-bg);
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px var(--shadow);
             width: 350px;
             transition: box-shadow 0.3s ease;
         }
         .login-container:hover {
-            box-shadow: 0 0 15px rgba(0,123,255,0.2);
+            box-shadow: 0 0 15px var(--input-focus);
         }
+
+        /* 工具栏：语言/主题切换 */
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tool-btn {
+            background: none;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+        .tool-btn:hover {
+            background-color: var(--input-focus);
+            color: white;
+            transform: translateY(-2px);
+        }
+
         h1 {
             text-align: center;
-            color: #333;
+            color: var(--text-color);
             margin-bottom: 30px;
+            font-size: 24px;
         }
         .warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffeeba;
-            color: #856404;
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
             padding: 12px;
             border-radius: 6px;
             margin-bottom: 20px;
@@ -54,19 +121,13 @@
             animation: slideDown 0.4s ease;
         }
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         label {
             display: block;
             margin: 10px 0 5px;
-            color: #555;
+            color: var(--label-color);
             font-weight: bold;
         }
         input[type="text"],
@@ -74,22 +135,24 @@
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
-            border: 1px solid #ccc;
+            border: 1px solid var(--input-border);
             border-radius: 6px;
             font-size: 14px;
+            background-color: var(--container-bg);
+            color: var(--text-color);
             transition: all 0.2s ease;
         }
         input[type="text"]:focus,
         input[type="password"]:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            border-color: var(--input-focus);
+            box-shadow: 0 0 5px var(--input-focus);
             transform: scale(1.02);
         }
-        button {
+        button[type="submit"] {
             width: 100%;
             padding: 12px;
-            background-color: #007bff;
+            background-color: var(--button-bg);
             color: white;
             border: none;
             border-radius: 6px;
@@ -99,26 +162,26 @@
             font-weight: bold;
             transition: all 0.2s ease;
         }
-        button:hover {
-            background-color: #0056b3;
+        button[type="submit"]:hover {
+            background-color: var(--button-hover);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+            box-shadow: 0 4px 8px var(--button-bg);
         }
-        button:active {
+        button[type="submit"]:active {
             transform: translateY(0);
         }
         .error {
-            color: #dc3545;
+            color: var(--error-text);
             text-align: center;
             margin-top: 15px;
             padding: 8px;
-            background-color: #f8d7da;
+            background-color: var(--error-bg);
             border-radius: 4px;
             font-size: 14px;
             animation: fadeIn 0.3s ease;
         }
         .info {
-            color: #6c757d;
+            color: var(--info-text);
             text-align: center;
             margin-top: 15px;
             font-size: 12px;
@@ -127,36 +190,42 @@
 </head>
 <body>
     <div class="login-container">
-        <h1>权限管理登录</h1>
+        <!-- 语言/主题切换工具栏 -->
+        <div class="toolbar">
+            <button class="tool-btn" onclick="toggleLanguage()" id="langBtn">🌐 English</button>
+            <button class="tool-btn" onclick="toggleTheme()" id="themeBtn">🌙 暗色</button>
+        </div>
+
+        <h1 data-i18n="login.title">权限管理登录</h1>
         
         {% if need_change %}
-        <div class="warning">
+        <div class="warning" data-i18n="login.warning">
             (｡•́︿•̀｡) 首次登录或使用默认密码，请修改密码
         </div>
         {% endif %}
         
         <form action="/login" method="post">
-            <label for="username">用户名</label>
+            <label for="username" data-i18n="login.username">用户名</label>
             <input type="text" id="username" name="username" value="{{ username }}" required {% if need_change %}readonly{% endif %} autofocus>
             
-            <label for="password">{{ "当前密码" if need_change else "密码" }}</label>
+            <label for="password" data-i18n="login.password">{{ "当前密码" if need_change else "密码" }}</label>
             <input type="password" id="password" name="password" required>
             
             {% if need_change %}
-            <label for="new_password">新密码</label>
+            <label for="new_password" data-i18n="login.new_password">新密码</label>
             <input type="password" id="new_password" name="new_password" required minlength="6">
-            <label for="confirm_password">确认新密码</label>
+            <label for="confirm_password" data-i18n="login.confirm_password">确认新密码</label>
             <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
             {% endif %}
             
-            <button type="submit">{{ "修改并登录" if need_change else "登录" }}</button>
+            <button type="submit" data-i18n="login.submit">{{ "修改并登录" if need_change else "登录" }}</button>
         </form>
         
         {% if error %}
         <div class="error">{{ error }}</div>
         {% endif %}
         
-        <div class="info">
+        <div class="info" data-i18n="login.info">
             {% if need_change %}
             首次登录请设置新密码（至少6位）
             {% else %}
@@ -166,6 +235,99 @@
     </div>
 
     <script>
+        // 语言包
+        const i18n = {
+            zh: {
+                'login.title': '权限管理登录',
+                'login.warning': '(｡•́︿•̀｡) 首次登录或使用默认密码，请修改密码',
+                'login.username': '用户名',
+                'login.password': '密码',
+                'login.new_password': '新密码',
+                'login.confirm_password': '确认新密码',
+                'login.submit': '登录',
+                'login.submit_change': '修改并登录',
+                'login.info_default': '首次登录密码在插件启动日志中查看，登录后可修改',
+                'login.info_change': '首次登录请设置新密码（至少6位）',
+                'langBtn': '🌐 English',
+                'themeBtn': '🌙 暗色',
+            },
+            en: {
+                'login.title': 'Permission Management - Login',
+                'login.warning': '(｡•́︿•̀｡) First login or using default password, please change password',
+                'login.username': 'Username',
+                'login.password': 'Password',
+                'login.new_password': 'New Password',
+                'login.confirm_password': 'Confirm Password',
+                'login.submit': 'Login',
+                'login.submit_change': 'Change & Login',
+                'login.info_default': 'Initial password is in the plugin startup log, change after login',
+                'login.info_change': 'First login, please set a new password (min 6 characters)',
+                'langBtn': '🌐 中文',
+                'themeBtn': '🌙 Dark',
+            }
+        };
+
+        let currentLang = localStorage.getItem('pluginLang') || 'zh';
+        let isDark = localStorage.getItem('pluginTheme') === 'dark';
+
+        // 应用语言
+        function applyLanguage(lang) {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'BUTTON') {
+                        if (el.type === 'text' || el.type === 'password') {
+                            el.placeholder = i18n[lang][key];
+                        } else if (el.tagName === 'BUTTON') {
+                            el.innerText = i18n[lang][key];
+                        }
+                    } else {
+                        el.innerText = i18n[lang][key];
+                    }
+                }
+            });
+            
+            // 特殊处理提交按钮文本（因为有两个可能）
+            const submitBtn = document.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                // 使用 default 过滤器避免变量缺失错误
+                const needChange = {{ need_change | default(false) | tojson }};
+                submitBtn.innerText = needChange ? i18n[lang]['login.submit_change'] : i18n[lang]['login.submit'];
+            }
+            
+            // 更新语言切换按钮文本
+            document.getElementById('langBtn').innerText = i18n[lang]['langBtn'];
+            // 更新主题按钮文本
+            document.getElementById('themeBtn').innerText = i18n[lang]['themeBtn'];
+            
+            localStorage.setItem('pluginLang', lang);
+        }
+
+        // 切换语言
+        window.toggleLanguage = function() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            applyLanguage(currentLang);
+        };
+
+        // 应用主题
+        function applyTheme(dark) {
+            if (dark) {
+                document.body.classList.add('dark-theme');
+                document.getElementById('themeBtn').innerText = i18n[currentLang]['themeBtn'].replace('🌙', '☀️').replace('暗色', '亮色').replace('Dark', 'Light');
+            } else {
+                document.body.classList.remove('dark-theme');
+                document.getElementById('themeBtn').innerText = i18n[currentLang]['themeBtn'];
+            }
+            localStorage.setItem('pluginTheme', dark ? 'dark' : 'light');
+        }
+
+        // 切换主题
+        window.toggleTheme = function() {
+            isDark = !isDark;
+            applyTheme(isDark);
+        };
+
+        // 初始化
         (function() {
             // 从 localStorage 读取透明度值并应用到登录容器
             const savedOpacity = localStorage.getItem('pluginBgOpacity');
@@ -175,6 +337,12 @@
                     document.documentElement.style.setProperty('--login-bg-opacity', opacity);
                 }
             }
+
+            // 语言
+            applyLanguage(currentLang);
+            // 主题
+            isDark = localStorage.getItem('pluginTheme') === 'dark';
+            applyTheme(isDark);
         })();
     </script>
 
@@ -186,10 +354,10 @@
             
             if (newPass !== confirmPass) {
                 e.preventDefault();
-                alert('两次输入的新密码不一致！');
+                alert(i18n[currentLang]['login.password_mismatch'] || '两次输入的新密码不一致！');
             } else if (newPass.length < 6) {
                 e.preventDefault();
-                alert('密码长度至少为6位！');
+                alert(i18n[currentLang]['login.password_too_short'] || '密码长度至少为6位！');
             }
         });
     </script>
