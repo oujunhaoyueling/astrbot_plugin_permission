@@ -4,6 +4,33 @@
     <title>指令权限管理</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <style>
+        /* 页面加载淡入动画 */
+        body {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 插件块浮入动画 */
+        @keyframes slideUpFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 通用淡入动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         body { 
             font-family: Arial, sans-serif; 
             margin: 20px; 
@@ -24,6 +51,10 @@
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: box-shadow 0.3s ease;
+        }
+        .header:hover {
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
         }
         .header-left { 
             display: flex; 
@@ -49,11 +80,12 @@
             color: #666; 
             padding: 5px 10px;
             border-radius: 5px;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
         }
         .logout:hover { 
             background-color: #f0f0f0;
             color: #000; 
+            transform: translateY(-2px);
         }
         .search-box { 
             margin: 10px 0; 
@@ -62,12 +94,13 @@
             border: 1px solid #ccc; 
             border-radius: 8px; 
             font-size: 14px;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
         }
         .search-box:focus { 
             outline: none; 
             border-color: #007bff; 
-            box-shadow: 0 0 5px rgba(0,123,255,0.3); 
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            transform: scale(1.02);
         }
         .plugin { 
             border: 1px solid #ddd; 
@@ -76,7 +109,9 @@
             border-radius: 10px; 
             background-color: rgba(255, 255, 255, var(--plugin-bg-opacity, 1));
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: box-shadow 0.2s, background-color 0.2s;
+            transition: box-shadow 0.2s, background-color 0.3s ease;
+            animation: slideUpFadeIn 0.5s ease forwards;
+            opacity: 1;
         }
         .plugin:hover {
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -109,10 +144,12 @@
             background-color: white; 
             cursor: pointer;
             min-width: 120px;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         .command select:hover { 
             border-color: #007bff; 
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,123,255,0.2);
         }
         .command select:focus { 
             outline: none; 
@@ -128,30 +165,35 @@
             border-radius: 6px; 
             cursor: pointer; 
             font-weight: bold; 
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         .submit:hover { 
             background-color: #0056b3; 
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+        }
+        .submit:active {
+            transform: translateY(0);
         }
         .no-match { 
             color: #999; 
             font-style: italic; 
             padding: 30px; 
             text-align: center; 
-            background-color: white; 
+            background-color: rgba(255, 255, 255, 0.9);
             border-radius: 8px; 
             border: 1px dashed #ccc; 
+            animation: fadeIn 0.4s ease;
         }
         .tip {
             color: #666;
             font-size: 14px;
             margin: 10px 0;
             padding: 10px;
-            background-color: #e7f3ff;
+            background-color: rgba(231, 243, 255, 0.9);
             border-radius: 6px;
             border-left: 4px solid #007bff;
+            animation: fadeIn 0.4s ease;
         }
         .save-status {
             position: fixed;
@@ -161,6 +203,17 @@
             border-radius: 6px;
             display: none;
             z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
         .save-status.success {
             background-color: #d4edda;
@@ -172,13 +225,17 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        /* 折叠面板样式 */
+        /* 折叠面板样式 - 添加过渡动画 */
         .collapse-panel {
             margin: 20px 0;
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             overflow: hidden;
+            transition: box-shadow 0.3s ease;
+        }
+        .collapse-panel:hover {
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
         }
         .collapse-header {
             padding: 15px 20px;
@@ -205,11 +262,18 @@
             color: #333;
         }
         .collapse-content {
-            padding: 0 20px 20px 20px;
-            border-top: 1px solid #eee;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+            padding: 0 20px;
+            background-color: #fafafa;
+            border-top: 1px solid transparent;
         }
-        .collapse-content.hidden {
-            display: none;
+        .collapse-content.expanded {
+            padding: 20px;
+            opacity: 1;
+            border-top-color: #eee;
         }
         /* 背景上传区域内部样式 */
         .background-upload, .opacity-control {
@@ -232,6 +296,10 @@
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+        .upload-form input[type="file"]:hover {
+            border-color: #007bff;
         }
         .upload-btn {
             background-color: #28a745;
@@ -241,14 +309,20 @@
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
         }
         .upload-btn:hover {
             background-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40,167,69,0.3);
+        }
+        .upload-btn:active {
+            transform: translateY(0);
         }
         .upload-status {
             margin-top: 10px;
             font-size: 14px;
+            animation: fadeIn 0.3s ease;
         }
         .current-bg {
             margin-top: 10px;
@@ -261,6 +335,10 @@
             border-radius: 4px;
             margin-left: 10px;
             vertical-align: middle;
+            transition: transform 0.2s;
+        }
+        .current-bg img:hover {
+            transform: scale(1.1);
         }
         .opacity-control {
             display: flex;
@@ -278,6 +356,10 @@
         .opacity-control input[type=range] {
             width: 250px;
             cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .opacity-control input[type=range]:hover {
+            opacity: 0.8;
         }
         .opacity-control span {
             min-width: 40px;
@@ -293,21 +375,21 @@
             <button onclick="savePermissions()" class="submit">保存</button>
         </div>
         <div class="user-info">
-            <span>👤 {{ username }}</span>
+            <span>(◕‿◕) {{ username }}</span>
             <a href="/logout" class="logout">登出</a>
         </div>
     </div>
     
     <div id="saveStatus" class="save-status"></div>
     
-    <!-- 折叠面板：背景设置 -->
+    <!-- 折叠面板：背景设置（带平滑过渡） -->
     <div class="collapse-panel" id="bgPanel">
         <div class="collapse-header" onclick="togglePanel()">
             <span class="arrow" id="panelArrow">▶</span>
             <span class="title">背景设置</span>
             <span style="color: #888; font-size: 0.9em;">(点击展开/收起)</span>
         </div>
-        <div class="collapse-content hidden" id="panelContent">
+        <div class="collapse-content" id="panelContent">
             <!-- 背景上传区域 -->
             <div class="background-upload">
                 <div class="upload-form">
@@ -334,16 +416,16 @@
     </div>
     
     <div style="text-align: right;">
-        <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜索插件、指令名……" oninput="filterPlugins()">
+        <input type="text" id="searchInput" class="search-box" placeholder="(´｡• ᵕ •｡`) 搜索插件、指令名……" oninput="filterPlugins()">
     </div>
     
     <div class="tip">
-        💡 提示：权限等级从低到高为 default(0)、member(1)、moderator(2)、admin(3)、super_admin(4)
+        (｡•̀ᴗ-)✧ 提示：权限等级从低到高为 default(0)、member(1)、moderator(2)、admin(3)、super_admin(4)
     </div>
     
     <div id="pluginsContainer">
         {% for plugin in plugin_data %}
-        <div class="plugin" data-plugin-name="{{ plugin.name }}">
+        <div class="plugin" data-plugin-name="{{ plugin.name }}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
             <h2>{{ plugin.name }}</h2>
             {% for cmd in plugin.commands %}
             <div class="command" data-plugin="{{ plugin.name }}" data-command="{{ cmd.name }}">
@@ -361,11 +443,11 @@
         {% endfor %}
     </div>
     <div id="noMatchMessage" class="no-match" style="display: none;">
-        ⚠️ 没有匹配的插件或指令
+        (｡•́︿•̀｡) 没有匹配的插件或指令
     </div>
 
     <script>
-        // 面板折叠状态管理
+        // 面板折叠状态管理（带平滑过渡）
         (function() {
             const panelContent = document.getElementById('panelContent');
             const panelArrow = document.getElementById('panelArrow');
@@ -373,28 +455,55 @@
             // 从 localStorage 读取折叠状态，默认收起（false）
             const isExpanded = localStorage.getItem('bgPanelExpanded') === 'true';
             
-            function updatePanel(expanded) {
+            // 设置初始状态（不使用过渡）
+            function setInitialState(expanded) {
                 if (expanded) {
-                    panelContent.classList.remove('hidden');
+                    panelContent.classList.add('expanded');
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
                     panelArrow.classList.add('expanded');
                     panelArrow.textContent = '▼';
                 } else {
-                    panelContent.classList.add('hidden');
+                    panelContent.classList.remove('expanded');
+                    panelContent.style.maxHeight = '0';
                     panelArrow.classList.remove('expanded');
                     panelArrow.textContent = '▶';
                 }
             }
             
-            // 初始状态
-            updatePanel(isExpanded);
+            // 动画切换函数
+            function togglePanel(expanded) {
+                if (expanded) {
+                    // 展开
+                    panelContent.classList.add('expanded');
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+                    panelArrow.classList.add('expanded');
+                    panelArrow.textContent = '▼';
+                } else {
+                    // 收起
+                    panelContent.classList.remove('expanded');
+                    panelContent.style.maxHeight = '0';
+                    panelArrow.classList.remove('expanded');
+                    panelArrow.textContent = '▶';
+                }
+            }
+            
+            // 初始状态设置（不带动画）
+            setInitialState(isExpanded);
             
             // 暴露切换函数给全局
             window.togglePanel = function() {
-                const currentlyExpanded = !panelContent.classList.contains('hidden');
+                const currentlyExpanded = panelContent.classList.contains('expanded');
                 const newState = !currentlyExpanded;
-                updatePanel(newState);
+                togglePanel(newState);
                 localStorage.setItem('bgPanelExpanded', newState);
             };
+            
+            // 当窗口大小改变时，如果面板是展开的，重新计算 maxHeight 以适应新内容
+            window.addEventListener('resize', function() {
+                if (panelContent.classList.contains('expanded')) {
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+                }
+            });
         })();
 
         // 初始化透明度滑块
@@ -445,9 +554,10 @@
                     }
                 }
 
-                // 显示或隐藏整个插件
+                // 显示或隐藏整个插件，添加淡出动画
                 if (pluginMatch) {
                     plugin.style.display = 'block';
+                    plugin.style.animation = 'slideUpFadeIn 0.3s ease';
                     anyVisible = true;
                 } else {
                     plugin.style.display = 'none';
@@ -500,12 +610,12 @@
                 const result = await response.json();
                 
                 if (response.ok && result.status === 'success') {
-                    showSaveStatus('✅ 保存成功！', true);
+                    showSaveStatus('(｡•̀ᴗ-)✧ 保存成功！', true);
                 } else {
-                    showSaveStatus('❌ 保存失败：' + (result.message || '未知错误'), false);
+                    showSaveStatus('(╥﹏╥) 保存失败：' + (result.message || '未知错误'), false);
                 }
             } catch (error) {
-                showSaveStatus('❌ 保存失败：网络错误', false);
+                showSaveStatus('(╥﹏╥) 保存失败：网络错误', false);
                 console.error('Save error:', error);
             }
         }
@@ -539,16 +649,16 @@
                 const result = await response.json();
 
                 if (response.ok && result.status === 'success') {
-                    statusDiv.innerHTML = '✅ 上传成功！页面即将刷新...';
+                    statusDiv.innerHTML = '(｡•̀ᴗ-)✧ 上传成功！页面即将刷新...';
                     statusDiv.style.color = '#28a745';
                     // 刷新页面以显示新背景
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    statusDiv.innerHTML = '❌ 上传失败：' + (result.message || '未知错误');
+                    statusDiv.innerHTML = '(╥﹏╥) 上传失败：' + (result.message || '未知错误');
                     statusDiv.style.color = '#dc3545';
                 }
             } catch (error) {
-                statusDiv.innerHTML = '❌ 上传失败：网络错误';
+                statusDiv.innerHTML = '(╥﹏╥) 上传失败：网络错误';
                 statusDiv.style.color = '#dc3545';
                 console.error('Upload error:', error);
             }

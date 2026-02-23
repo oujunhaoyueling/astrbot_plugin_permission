@@ -3,9 +3,17 @@
 <head>
     <title>权限管理 - 登录</title>
     <style>
+        /* 页面加载淡入动画 */
+        body {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,6 +23,8 @@
             background-image: url('/backgrounds/{{ background }}');
             background-size: cover;
             background-attachment: fixed;
+            {% else %}
+            background-color: #f4f4f4;
             {% endif %}
         }
         .login-container {
@@ -23,6 +33,10 @@
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             width: 350px;
+            transition: box-shadow 0.3s ease;
+        }
+        .login-container:hover {
+            box-shadow: 0 0 15px rgba(0,123,255,0.2);
         }
         h1 {
             text-align: center;
@@ -37,6 +51,17 @@
             border-radius: 6px;
             margin-bottom: 20px;
             text-align: center;
+            animation: slideDown 0.4s ease;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         label {
             display: block;
@@ -52,12 +77,14 @@
             border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 14px;
+            transition: all 0.2s ease;
         }
         input[type="text"]:focus,
         input[type="password"]:focus {
             outline: none;
             border-color: #007bff;
             box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            transform: scale(1.02);
         }
         button {
             width: 100%;
@@ -70,10 +97,15 @@
             margin-top: 20px;
             font-size: 16px;
             font-weight: bold;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
         }
         button:hover {
             background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+        }
+        button:active {
+            transform: translateY(0);
         }
         .error {
             color: #dc3545;
@@ -83,6 +115,7 @@
             background-color: #f8d7da;
             border-radius: 4px;
             font-size: 14px;
+            animation: fadeIn 0.3s ease;
         }
         .info {
             color: #6c757d;
@@ -98,7 +131,7 @@
         
         {% if need_change %}
         <div class="warning">
-            ⚠️ 首次登录或使用默认密码，请修改密码
+            (｡•́︿•̀｡) 首次登录或使用默认密码，请修改密码
         </div>
         {% endif %}
         
