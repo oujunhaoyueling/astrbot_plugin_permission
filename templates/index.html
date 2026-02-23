@@ -1,12 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>指令权限管理</title>
+    <title data-i18n="index.title">指令权限管理</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <style>
+        /* 全局变量：亮色/暗色主题 */
+        :root {
+            --bg-color: #f9f9f9;
+            --container-bg: rgba(255, 255, 255, 0.9);
+            --text-color: #333;
+            --header-bg: white;
+            --plugin-bg: rgba(255, 255, 255, var(--plugin-bg-opacity, 1));
+            --border-color: #ddd;
+            --input-border: #ccc;
+            --input-focus: #007bff;
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+            --tip-bg: #e7f3ff;
+            --tip-text: #666;
+            --shadow: rgba(0,0,0,0.05);
+            --link-color: #007bff;
+            --transition-speed: 0.3s;
+        }
+        .dark-theme {
+            --bg-color: #1a1a1a;
+            --container-bg: rgba(30, 30, 30, 0.9);
+            --text-color: #e0e0e0;
+            --header-bg: #2d2d2d;
+            --plugin-bg: rgba(40, 40, 40, var(--plugin-bg-opacity, 1));
+            --border-color: #444;
+            --input-border: #555;
+            --input-focus: #4d9fff;
+            --button-bg: #4d9fff;
+            --button-hover: #1a73e8;
+            --tip-bg: #2a3a4a;
+            --tip-text: #ccc;
+            --shadow: rgba(0,0,0,0.3);
+            --link-color: #4d9fff;
+        }
+
+        * {
+            transition: background-color var(--transition-speed) ease,
+                        border-color var(--transition-speed) ease,
+                        color var(--transition-speed) ease,
+                        box-shadow var(--transition-speed) ease;
+        }
+
         /* 页面加载淡入动画 */
         body {
             animation: fadeIn 0.5s ease;
+            background-color: var(--bg-color);
+            {% if background %}
+            background-image: url('/backgrounds/{{ background }}');
+            background-size: cover;
+            background-attachment: fixed;
+            {% endif %}
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: var(--text-color);
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -15,32 +66,10 @@
 
         /* 插件块浮入动画 */
         @keyframes slideUpFadeIn {
-            0% {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
-        /* 通用淡入动画 */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background-color: #f9f9f9;
-            {% if background %}
-            background-image: url('/backgrounds/{{ background }}');
-            background-size: cover;
-            background-attachment: fixed;
-            {% endif %}
-        }
         .header { 
             display: flex; 
             justify-content: space-between; 
@@ -48,83 +77,134 @@
             flex-wrap: wrap; 
             margin-bottom: 20px; 
             padding: 10px;
-            background-color: white;
+            background-color: var(--header-bg);
             border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px var(--shadow);
             transition: box-shadow 0.3s ease;
         }
         .header:hover {
-            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+            box-shadow: 0 4px 12px var(--input-focus);
         }
         .header-left { 
             display: flex; 
             align-items: center; 
             gap: 15px; 
+            flex-wrap: wrap;
         }
         .header-left h1 { 
             margin: 0; 
             font-size: 24px;
-            color: #333;
+            color: var(--text-color);
         }
-        .header .user-info { 
-            display: flex; 
-            align-items: center; 
-            gap: 15px; 
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 10px;
         }
-        .header .user-info span { 
-            font-weight: bold; 
-            color: #555;
+        .tool-btn {
+            background: none;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+        .tool-btn:hover {
+            background-color: var(--input-focus);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info span {
+            font-weight: bold;
+            color: var(--text-color);
         }
         .logout { 
             text-decoration: none; 
-            color: #666; 
+            color: var(--text-color); 
             padding: 5px 10px;
             border-radius: 5px;
             transition: all 0.2s ease;
+            border: 1px solid transparent;
         }
         .logout:hover { 
-            background-color: #f0f0f0;
-            color: #000; 
+            background-color: var(--input-focus);
+            color: white;
             transform: translateY(-2px);
         }
+
         .search-box { 
             margin: 10px 0; 
             padding: 10px 15px; 
             width: 300px; 
-            border: 1px solid #ccc; 
+            border: 1px solid var(--input-border); 
             border-radius: 8px; 
             font-size: 14px;
+            background-color: var(--container-bg);
+            color: var(--text-color);
             transition: all 0.3s ease;
         }
         .search-box:focus { 
             outline: none; 
-            border-color: #007bff; 
-            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            border-color: var(--input-focus); 
+            box-shadow: 0 0 5px var(--input-focus);
             transform: scale(1.02);
         }
+
+        /* 插件卡片 */
         .plugin { 
-            border: 1px solid #ddd; 
+            border: 1px solid var(--border-color); 
             margin-bottom: 20px; 
             padding: 15px; 
             border-radius: 10px; 
-            background-color: rgba(255, 255, 255, var(--plugin-bg-opacity, 1));
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background-color: var(--plugin-bg);
+            box-shadow: 0 2px 4px var(--shadow);
             transition: box-shadow 0.2s, background-color 0.3s ease;
             animation: slideUpFadeIn 0.5s ease forwards;
-            opacity: 1;
         }
         .plugin:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px var(--input-focus);
         }
-        .plugin h2 { 
-            margin-top: 0; 
-            background-color: #f5f5f5; 
-            padding: 10px 15px; 
-            border-radius: 6px; 
-            font-size: 1.2em; 
-            color: #333;
-            border-left: 4px solid #007bff;
+
+        /* 插件标题行（含折叠三角） */
+        .plugin-header {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
         }
+        .plugin-header h2 {
+            margin: 0;
+            flex: 1;
+            font-size: 1.2em;
+            color: var(--text-color);
+        }
+        .collapse-icon {
+            font-size: 20px;
+            transition: transform 0.2s;
+            margin-right: 10px;
+        }
+        .collapse-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        /* 指令列表容器，用于折叠 */
+        .commands-container {
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+        .commands-container.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+        }
+
         .command { 
             margin: 12px 0; 
             padding-left: 20px; 
@@ -134,30 +214,55 @@
         .command label { 
             width: 200px; 
             font-weight: bold; 
-            color: #555;
+            color: var(--text-color);
         }
         .command select { 
             margin-left: 10px; 
             padding: 8px 12px; 
-            border: 1px solid #ccc; 
+            border: 1px solid var(--input-border); 
             border-radius: 6px; 
-            background-color: white; 
+            background-color: var(--container-bg); 
+            color: var(--text-color);
             cursor: pointer;
             min-width: 120px;
             transition: all 0.2s ease;
         }
         .command select:hover { 
-            border-color: #007bff; 
+            border-color: var(--input-focus); 
             transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+            box-shadow: 0 2px 4px var(--input-focus);
         }
         .command select:focus { 
             outline: none; 
-            border-color: #007bff; 
-            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            border-color: var(--input-focus); 
+            box-shadow: 0 0 5px var(--input-focus);
         }
+
+        /* 撤销按钮 */
+        .undo-btn {
+            margin-left: 10px;
+            background: none;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 5px 8px;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+        .undo-btn:hover:not(:disabled) {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #333;
+            transform: translateY(-2px);
+        }
+        .undo-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
         .submit { 
-            background-color: #007bff; 
+            background-color: var(--button-bg); 
             color: white; 
             border: none; 
             padding: 10px 25px; 
@@ -168,33 +273,36 @@
             transition: all 0.2s ease;
         }
         .submit:hover { 
-            background-color: #0056b3; 
+            background-color: var(--button-hover); 
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+            box-shadow: 0 4px 8px var(--button-bg);
         }
         .submit:active {
             transform: translateY(0);
         }
+
         .no-match { 
-            color: #999; 
+            color: var(--tip-text); 
             font-style: italic; 
             padding: 30px; 
             text-align: center; 
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: var(--container-bg); 
             border-radius: 8px; 
-            border: 1px dashed #ccc; 
+            border: 1px dashed var(--border-color); 
             animation: fadeIn 0.4s ease;
         }
+
         .tip {
-            color: #666;
+            color: var(--tip-text);
             font-size: 14px;
             margin: 10px 0;
             padding: 10px;
-            background-color: rgba(231, 243, 255, 0.9);
+            background-color: var(--tip-bg);
             border-radius: 6px;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid var(--input-focus);
             animation: fadeIn 0.4s ease;
         }
+
         .save-status {
             position: fixed;
             top: 20px;
@@ -206,14 +314,8 @@
             animation: slideIn 0.3s ease;
         }
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
         .save-status.success {
             background-color: #d4edda;
@@ -225,17 +327,14 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        /* 折叠面板样式 - 添加过渡动画 */
+
+        /* 折叠面板（背景设置） */
         .collapse-panel {
             margin: 20px 0;
-            background-color: white;
+            background-color: var(--header-bg);
             border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px var(--shadow);
             overflow: hidden;
-            transition: box-shadow 0.3s ease;
-        }
-        .collapse-panel:hover {
-            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
         }
         .collapse-header {
             padding: 15px 20px;
@@ -244,11 +343,10 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            background-color: white;
-            transition: background-color 0.2s;
+            background-color: var(--header-bg);
         }
         .collapse-header:hover {
-            background-color: #f5f5f5;
+            background-color: var(--tip-bg);
         }
         .collapse-header .arrow {
             font-size: 18px;
@@ -257,24 +355,21 @@
         .collapse-header .arrow.expanded {
             transform: rotate(90deg);
         }
-        .collapse-header .title {
-            font-weight: bold;
-            color: #333;
-        }
         .collapse-content {
             max-height: 0;
             opacity: 0;
             overflow: hidden;
             transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
             padding: 0 20px;
-            background-color: #fafafa;
+            background-color: var(--container-bg);
             border-top: 1px solid transparent;
         }
         .collapse-content.expanded {
             padding: 20px;
             opacity: 1;
-            border-top-color: #eee;
+            border-top-color: var(--border-color);
         }
+
         /* 背景上传区域内部样式 */
         .background-upload, .opacity-control {
             background: none;
@@ -294,12 +389,10 @@
         }
         .upload-form input[type="file"] {
             padding: 5px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--input-border);
             border-radius: 4px;
-            transition: border-color 0.2s;
-        }
-        .upload-form input[type="file"]:hover {
-            border-color: #007bff;
+            background-color: var(--container-bg);
+            color: var(--text-color);
         }
         .upload-btn {
             background-color: #28a745;
@@ -327,7 +420,7 @@
         .current-bg {
             margin-top: 10px;
             font-size: 14px;
-            color: #555;
+            color: var(--text-color);
         }
         .current-bg img {
             max-width: 100px;
@@ -347,68 +440,108 @@
             flex-wrap: wrap;
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid var(--border-color);
         }
         .opacity-control label {
             font-weight: bold;
-            color: #333;
+            color: var(--text-color);
         }
         .opacity-control input[type=range] {
             width: 250px;
             cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .opacity-control input[type=range]:hover {
-            opacity: 0.8;
+            background: var(--input-border);
         }
         .opacity-control span {
             min-width: 40px;
             text-align: center;
-            color: #555;
+            color: var(--text-color);
+        }
+
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: var(--link-color);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+            color: var(--button-hover);
+        }
+
+        /* 底部按钮组 */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .undo-all-btn {
+            background-color: #ffc107;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #333;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .undo-all-btn:hover {
+            background-color: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px #ffc107;
+        }
+        .undo-all-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-left">
-            <h1>指令权限管理</h1>
-            <button onclick="savePermissions()" class="submit">保存</button>
+            <h1 data-i18n="index.title">指令权限管理</h1>
+            <button onclick="savePermissions()" class="submit" data-i18n="index.save">保存</button>
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <button class="tool-btn" onclick="toggleLanguage()" id="langBtn">🌐 English</button>
+                <button class="tool-btn" onclick="toggleTheme()" id="themeBtn">🌙 暗色</button>
+            </div>
         </div>
         <div class="user-info">
             <span>(◕‿◕) {{ username }}</span>
-            <a href="/logout" class="logout">登出</a>
+            <a href="/logout" class="logout" data-i18n="index.logout">登出</a>
         </div>
     </div>
     
     <div id="saveStatus" class="save-status"></div>
     
-    <!-- 折叠面板：背景设置（带平滑过渡） -->
+    <!-- 折叠面板：背景设置 -->
     <div class="collapse-panel" id="bgPanel">
         <div class="collapse-header" onclick="togglePanel()">
             <span class="arrow" id="panelArrow">▶</span>
-            <span class="title">背景设置</span>
-            <span style="color: #888; font-size: 0.9em;">(点击展开/收起)</span>
+            <span class="title" data-i18n="index.bg_settings">背景设置</span>
+            <span style="color: #888; font-size: 0.9em;" data-i18n="index.click_toggle">(点击展开/收起)</span>
         </div>
         <div class="collapse-content" id="panelContent">
-            <!-- 背景上传区域 -->
             <div class="background-upload">
                 <div class="upload-form">
                     <input type="file" id="bgFile" accept=".jpg,.jpeg,.png,.gif,.webp">
-                    <button onclick="uploadBackground()" class="upload-btn">上传背景</button>
+                    <button onclick="uploadBackground()" class="upload-btn" data-i18n="index.upload">上传背景</button>
                 </div>
                 <div id="uploadStatus" class="upload-status"></div>
                 {% if background %}
-                <div class="current-bg">
-                    当前背景: {{ background }}
-                    <img src="/backgrounds/{{ background }}?t={{ range(1, 1000) | random }}" alt="当前背景预览">
-                </div>
+                <div class="current-bg" data-i18n="index.current_bg" data-i18n-args="{{ background }}">当前背景: {{ background }}</div>
                 {% else %}
-                <div class="current-bg">当前未设置背景（使用默认纯色）</div>
+                <div class="current-bg" data-i18n="index.no_bg">当前未设置背景（使用默认纯色）</div>
                 {% endif %}
             </div>
-            <!-- 透明度滑块 -->
             <div class="opacity-control">
-                <label for="opacitySlider">指令列表背景透明度:</label>
+                <label for="opacitySlider" data-i18n="index.opacity">指令列表背景透明度:</label>
                 <input type="range" id="opacitySlider" min="0" max="1" step="0.05" value="1">
                 <span id="opacityValue">100%</span>
             </div>
@@ -416,171 +549,193 @@
     </div>
     
     <div style="text-align: right;">
-        <input type="text" id="searchInput" class="search-box" placeholder="(´｡• ᵕ •｡`) 搜索插件、指令名……" oninput="filterPlugins()">
+        <input type="text" id="searchInput" class="search-box" placeholder="(´｡• ᵕ •｡`) 搜索插件、指令名……" data-i18n="index.search_placeholder">
     </div>
     
-    <div class="tip">
+    <div class="tip" data-i18n="index.tip">
         (｡•̀ᴗ-)✧ 提示：权限等级从低到高为 default(0)、member(1)、moderator(2)、admin(3)、super_admin(4)
+    </div>
+
+    <!-- 操作栏：全部撤销 -->
+    <div class="action-bar">
+        <button class="undo-all-btn" onclick="undoAllChanges()" id="undoAllBtn" disabled data-i18n="index.undo_all">↩️ 全部撤销</button>
+        <span></span>
     </div>
     
     <div id="pluginsContainer">
         {% for plugin in plugin_data %}
-        <div class="plugin" data-plugin-name="{{ plugin.name }}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
-            <h2>{{ plugin.name }}</h2>
-            {% for cmd in plugin.commands %}
-            <div class="command" data-plugin="{{ plugin.name }}" data-command="{{ cmd.name }}">
-                <label>/{{ cmd.name }}</label>
-                <select class="perm-select" data-plugin="{{ plugin.name }}" data-command="{{ cmd.name }}">
-                    {% for level_name, level_value in PERMISSION_LEVELS.items() %}
-                    <option value="{{ level_value }}" {% if cmd.level == level_value %}selected{% endif %}>
-                        {{ level_name }} ({{ level_value }})
-                    </option>
-                    {% endfor %}
-                </select>
+        <div class="plugin" data-plugin-name="{{ plugin.name }}" data-plugin-index="{{ loop.index0 }}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+            <!-- 插件标题行（带折叠三角） -->
+            <div class="plugin-header" onclick="togglePluginCollapse(this)">
+                <span class="collapse-icon" id="plugin-arrow-{{ loop.index0 }}">▶</span>
+                <h2>{{ plugin.name }}</h2>
             </div>
-            {% endfor %}
+            <!-- 指令列表容器，用于折叠 -->
+            <div class="commands-container" id="plugin-commands-{{ loop.index0 }}">
+                {% for cmd in plugin.commands %}
+                <div class="command" data-plugin="{{ plugin.name }}" data-command="{{ cmd.name }}" data-original-level="{{ cmd.level }}">
+                    <label>/{{ cmd.name }}</label>
+                    <select class="perm-select" data-plugin="{{ plugin.name }}" data-command="{{ cmd.name }}" onchange="trackChange(this)">
+                        {% for level_name, level_value in PERMISSION_LEVELS.items() %}
+                        <option value="{{ level_value }}" {% if cmd.level == level_value %}selected{% endif %}>
+                            {{ level_name }} ({{ level_value }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <!-- 单个撤销按钮 -->
+                    <button class="undo-btn" onclick="undoCommand(this)" disabled data-i18n="index.undo">↩️</button>
+                </div>
+                {% endfor %}
+            </div>
         </div>
         {% endfor %}
     </div>
-    <div id="noMatchMessage" class="no-match" style="display: none;">
+    <div id="noMatchMessage" class="no-match" style="display: none;" data-i18n="index.no_match">
         (｡•́︿•̀｡) 没有匹配的插件或指令
     </div>
 
+    <!-- GitHub 链接 -->
+    <div class="footer">
+        <a href="https://github.com/oujunhaoyueling/astrbot_plugin_permission" target="_blank" data-i18n="index.github">✨ 对此插件满意？给一个 star！</a>
+    </div>
+
     <script>
-        // 面板折叠状态管理（带平滑过渡）
-        (function() {
-            const panelContent = document.getElementById('panelContent');
-            const panelArrow = document.getElementById('panelArrow');
-            
-            // 从 localStorage 读取折叠状态，默认收起（false）
-            const isExpanded = localStorage.getItem('bgPanelExpanded') === 'true';
-            
-            // 设置初始状态（不使用过渡）
-            function setInitialState(expanded) {
-                if (expanded) {
-                    panelContent.classList.add('expanded');
-                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
-                    panelArrow.classList.add('expanded');
-                    panelArrow.textContent = '▼';
-                } else {
-                    panelContent.classList.remove('expanded');
-                    panelContent.style.maxHeight = '0';
-                    panelArrow.classList.remove('expanded');
-                    panelArrow.textContent = '▶';
-                }
+        // ---------- 语言包 ----------
+        const i18n = {
+            zh: {
+                'index.title': '指令权限管理',
+                'index.save': '保存',
+                'index.logout': '登出',
+                'index.bg_settings': '背景设置',
+                'index.click_toggle': '(点击展开/收起)',
+                'index.upload': '上传背景',
+                'index.current_bg': '当前背景: {{0}}',
+                'index.no_bg': '当前未设置背景（使用默认纯色）',
+                'index.opacity': '指令列表背景透明度:',
+                'index.search_placeholder': '(´｡• ᵕ •｡`) 搜索插件、指令名……',
+                'index.tip': '(｡•̀ᴗ-)✧ 提示：权限等级从低到高为 default(0)、member(1)、moderator(2)、admin(3)、super_admin(4)',
+                'index.undo_all': '↩️ 全部撤销',
+                'index.undo': '↩️',
+                'index.no_match': '(｡•́︿•̀｡) 没有匹配的插件或指令',
+                'index.github': '✨ 对此插件满意？给一个 star！',
+                'langBtn': '🌐 English',
+                'themeBtn': '🌙 暗色',
+                'save_success': '(｡•̀ᴗ-)✧ 保存成功！',
+                'save_fail': '(╥﹏╥) 保存失败：{{0}}',
+                'upload_success': '(｡•̀ᴗ-)✧ 上传成功！页面即将刷新...',
+                'upload_fail': '(╥﹏╥) 上传失败：{{0}}',
+                'confirm_save': '有未保存的修改，确定要保存吗？',
+                'confirm_undo_all': '确定要撤销所有修改吗？',
+                'uploading': '上传中...',
+            },
+            en: {
+                'index.title': 'Command Permission Management',
+                'index.save': 'Save',
+                'index.logout': 'Logout',
+                'index.bg_settings': 'Background Settings',
+                'index.click_toggle': '(click to expand/collapse)',
+                'index.upload': 'Upload Background',
+                'index.current_bg': 'Current background: {{0}}',
+                'index.no_bg': 'No background set (using default color)',
+                'index.opacity': 'Command list background opacity:',
+                'index.search_placeholder': '(´｡• ᵕ •｡`) Search plugins, commands...',
+                'index.tip': '(｡•̀ᴗ-)✧ Tip: Permission levels: default(0), member(1), moderator(2), admin(3), super_admin(4)',
+                'index.undo_all': '↩️ Undo All',
+                'index.undo': '↩️',
+                'index.no_match': '(｡•́︿•̀｡) No matching plugins or commands',
+                'index.github': '✨ Satisfied with this plugin? Give a star!',
+                'langBtn': '🌐 中文',
+                'themeBtn': '🌙 Dark',
+                'save_success': '(｡•̀ᴗ-)✧ Saved successfully!',
+                'save_fail': '(╥﹏╥) Save failed: {{0}}',
+                'upload_success': '(｡•̀ᴗ-)✧ Upload successful! Refreshing...',
+                'upload_fail': '(╥﹏╥) Upload failed: {{0}}',
+                'confirm_save': 'You have unsaved changes. Confirm save?',
+                'confirm_undo_all': 'Undo all changes?',
+                'uploading': 'Uploading...',
             }
-            
-            // 动画切换函数
-            function togglePanel(expanded) {
-                if (expanded) {
-                    // 展开
-                    panelContent.classList.add('expanded');
-                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
-                    panelArrow.classList.add('expanded');
-                    panelArrow.textContent = '▼';
-                } else {
-                    // 收起
-                    panelContent.classList.remove('expanded');
-                    panelContent.style.maxHeight = '0';
-                    panelArrow.classList.remove('expanded');
-                    panelArrow.textContent = '▶';
-                }
+        };
+
+        let currentLang = localStorage.getItem('pluginLang') || 'zh';
+        let isDark = localStorage.getItem('pluginTheme') === 'dark';
+        let changes = new Map(); // 记录修改：key = "plugin|command", value = newLevel
+        let originalValues = new Map(); // 记录原始值
+
+        // 初始化原始值
+        document.querySelectorAll('.perm-select').forEach(select => {
+            const plugin = select.dataset.plugin;
+            const command = select.dataset.command;
+            const original = select.value;
+            originalValues.set(`${plugin}|${command}`, original);
+        });
+
+        // 跟踪修改
+        window.trackChange = function(select) {
+            const plugin = select.dataset.plugin;
+            const command = select.dataset.command;
+            const newVal = select.value;
+            const key = `${plugin}|${command}`;
+            const original = originalValues.get(key);
+            if (newVal === original) {
+                changes.delete(key);
+            } else {
+                changes.set(key, newVal);
             }
-            
-            // 初始状态设置（不带动画）
-            setInitialState(isExpanded);
-            
-            // 暴露切换函数给全局
-            window.togglePanel = function() {
-                const currentlyExpanded = panelContent.classList.contains('expanded');
-                const newState = !currentlyExpanded;
-                togglePanel(newState);
-                localStorage.setItem('bgPanelExpanded', newState);
-            };
-            
-            // 当窗口大小改变时，如果面板是展开的，重新计算 maxHeight 以适应新内容
-            window.addEventListener('resize', function() {
-                if (panelContent.classList.contains('expanded')) {
-                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+            updateUndoButtons();
+        };
+
+        // 更新撤销按钮状态
+        function updateUndoButtons() {
+            // 单个撤销
+            document.querySelectorAll('.perm-select').forEach(select => {
+                const plugin = select.dataset.plugin;
+                const command = select.dataset.command;
+                const key = `${plugin}|${command}`;
+                const undoBtn = select.closest('.command').querySelector('.undo-btn');
+                if (changes.has(key)) {
+                    undoBtn.disabled = false;
+                } else {
+                    undoBtn.disabled = true;
                 }
             });
-        })();
-
-        // 初始化透明度滑块
-        (function() {
-            const slider = document.getElementById('opacitySlider');
-            const valueSpan = document.getElementById('opacityValue');
-            const root = document.documentElement;
-
-            // 从 localStorage 读取保存的透明度
-            const savedOpacity = localStorage.getItem('pluginBgOpacity');
-            if (savedOpacity !== null) {
-                const opacity = parseFloat(savedOpacity);
-                if (!isNaN(opacity) && opacity >= 0 && opacity <= 1) {
-                    slider.value = opacity;
-                    root.style.setProperty('--plugin-bg-opacity', opacity);
-                    valueSpan.textContent = Math.round(opacity * 100) + '%';
-                }
-            }
-
-            slider.addEventListener('input', function() {
-                const val = parseFloat(slider.value);
-                root.style.setProperty('--plugin-bg-opacity', val);
-                valueSpan.textContent = Math.round(val * 100) + '%';
-                localStorage.setItem('pluginBgOpacity', val);
-            });
-        })();
-
-        function filterPlugins() {
-            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
-            const plugins = document.querySelectorAll('.plugin');
-            let anyVisible = false;
-
-            plugins.forEach(plugin => {
-                const pluginName = plugin.getAttribute('data-plugin-name').toLowerCase();
-                const commands = plugin.querySelectorAll('.command');
-                
-                // 检查插件名是否匹配
-                let pluginMatch = searchText === '' || pluginName.includes(searchText);
-                
-                // 如果插件名不匹配，再检查指令名
-                if (!pluginMatch) {
-                    for (let cmd of commands) {
-                        const cmdName = cmd.getAttribute('data-command').toLowerCase();
-                        if (cmdName.includes(searchText)) {
-                            pluginMatch = true;
-                            break;
-                        }
-                    }
-                }
-
-                // 显示或隐藏整个插件，添加淡出动画
-                if (pluginMatch) {
-                    plugin.style.display = 'block';
-                    plugin.style.animation = 'slideUpFadeIn 0.3s ease';
-                    anyVisible = true;
-                } else {
-                    plugin.style.display = 'none';
-                }
-            });
-
-            // 显示无匹配提示
-            const noMatchMsg = document.getElementById('noMatchMessage');
-            noMatchMsg.style.display = anyVisible ? 'none' : 'block';
+            // 全部撤销
+            document.getElementById('undoAllBtn').disabled = changes.size === 0;
         }
 
-        function showSaveStatus(message, isSuccess) {
-            const status = document.getElementById('saveStatus');
-            status.textContent = message;
-            status.className = 'save-status ' + (isSuccess ? 'success' : 'error');
-            status.style.display = 'block';
-            
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 3000);
-        }
+        // 单个撤销
+        window.undoCommand = function(btn) {
+            const commandDiv = btn.closest('.command');
+            const select = commandDiv.querySelector('.perm-select');
+            const plugin = select.dataset.plugin;
+            const command = select.dataset.command;
+            const key = `${plugin}|${command}`;
+            const original = originalValues.get(key);
+            select.value = original;
+            changes.delete(key);
+            updateUndoButtons();
+            // 触发 change 事件以便后续保存
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        };
 
-        async function savePermissions() {
+        // 全部撤销
+        window.undoAllChanges = function() {
+            if (!confirm(i18n[currentLang]['confirm_undo_all'])) return;
+            document.querySelectorAll('.perm-select').forEach(select => {
+                const plugin = select.dataset.plugin;
+                const command = select.dataset.command;
+                const key = `${plugin}|${command}`;
+                const original = originalValues.get(key);
+                select.value = original;
+            });
+            changes.clear();
+            updateUndoButtons();
+        };
+
+        // 保存前二次确认
+        window.savePermissions = async function() {
+            if (changes.size > 0 && !confirm(i18n[currentLang]['confirm_save'])) {
+                return;
+            }
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const selects = document.querySelectorAll('.perm-select');
             const permissions = [];
@@ -610,18 +765,142 @@
                 const result = await response.json();
                 
                 if (response.ok && result.status === 'success') {
-                    showSaveStatus('(｡•̀ᴗ-)✧ 保存成功！', true);
+                    showSaveStatus(i18n[currentLang]['save_success'], true);
+                    // 重置原始值和修改记录
+                    originalValues.clear();
+                    document.querySelectorAll('.perm-select').forEach(select => {
+                        const plugin = select.dataset.plugin;
+                        const command = select.dataset.command;
+                        originalValues.set(`${plugin}|${command}`, select.value);
+                    });
+                    changes.clear();
+                    updateUndoButtons();
                 } else {
-                    showSaveStatus('(╥﹏╥) 保存失败：' + (result.message || '未知错误'), false);
+                    showSaveStatus(i18n[currentLang]['save_fail'].replace('{{0}}', result.message || ''), false);
                 }
             } catch (error) {
-                showSaveStatus('(╥﹏╥) 保存失败：网络错误', false);
+                showSaveStatus(i18n[currentLang]['save_fail'].replace('{{0}}', '网络错误'), false);
                 console.error('Save error:', error);
             }
+        };
+
+        // 模糊搜索
+        window.filterPlugins = function() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            const plugins = document.querySelectorAll('.plugin');
+            let anyVisible = false;
+
+            plugins.forEach(plugin => {
+                const pluginName = plugin.getAttribute('data-plugin-name').toLowerCase();
+                const commands = plugin.querySelectorAll('.command');
+                
+                let pluginMatch = searchText === '' || pluginName.includes(searchText);
+                
+                if (!pluginMatch) {
+                    for (let cmd of commands) {
+                        const cmdName = cmd.getAttribute('data-command').toLowerCase();
+                        if (cmdName.includes(searchText)) {
+                            pluginMatch = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (pluginMatch) {
+                    plugin.style.display = 'block';
+                    plugin.style.animation = 'slideUpFadeIn 0.3s ease';
+                    anyVisible = true;
+                } else {
+                    plugin.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noMatchMessage').style.display = anyVisible ? 'none' : 'block';
+        };
+
+        // 插件卡片折叠
+        window.togglePluginCollapse = function(header) {
+            const pluginDiv = header.closest('.plugin');
+            const commandsContainer = pluginDiv.querySelector('.commands-container');
+            const icon = header.querySelector('.collapse-icon');
+            const isCollapsed = commandsContainer.classList.contains('collapsed');
+            if (isCollapsed) {
+                commandsContainer.classList.remove('collapsed');
+                commandsContainer.style.maxHeight = commandsContainer.scrollHeight + 'px';
+                icon.classList.add('expanded');
+            } else {
+                commandsContainer.classList.add('collapsed');
+                commandsContainer.style.maxHeight = '0';
+                icon.classList.remove('expanded');
+            }
+            // 保存状态到 localStorage
+            const pluginName = pluginDiv.dataset.pluginName;
+            localStorage.setItem(`plugin_collapse_${pluginName}`, isCollapsed ? 'expanded' : 'collapsed');
+        };
+
+        // 初始化插件折叠状态
+        function initPluginCollapse() {
+            document.querySelectorAll('.plugin').forEach(plugin => {
+                const pluginName = plugin.dataset.pluginName;
+                const saved = localStorage.getItem(`plugin_collapse_${pluginName}`);
+                const commandsContainer = plugin.querySelector('.commands-container');
+                const icon = plugin.querySelector('.collapse-icon');
+                if (saved === 'collapsed') {
+                    commandsContainer.classList.add('collapsed');
+                    commandsContainer.style.maxHeight = '0';
+                    icon.classList.remove('expanded');
+                } else {
+                    commandsContainer.classList.remove('collapsed');
+                    commandsContainer.style.maxHeight = commandsContainer.scrollHeight + 'px';
+                    icon.classList.add('expanded');
+                }
+            });
         }
 
+        // 语言/主题切换函数
+        function applyLanguage(lang) {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'BUTTON') {
+                        if (el.type === 'text' || el.type === 'search') {
+                            el.placeholder = i18n[lang][key];
+                        } else {
+                            el.value = i18n[lang][key];
+                        }
+                    } else {
+                        el.innerText = i18n[lang][key];
+                    }
+                }
+            });
+            document.getElementById('langBtn').innerText = i18n[lang]['langBtn'];
+            document.getElementById('themeBtn').innerText = i18n[lang]['themeBtn'];
+            localStorage.setItem('pluginLang', lang);
+        }
+
+        window.toggleLanguage = function() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            applyLanguage(currentLang);
+        };
+
+        function applyTheme(dark) {
+            if (dark) {
+                document.body.classList.add('dark-theme');
+                document.getElementById('themeBtn').innerText = i18n[currentLang]['themeBtn'].replace('🌙', '☀️').replace('暗色', '亮色').replace('Dark', 'Light');
+            } else {
+                document.body.classList.remove('dark-theme');
+                document.getElementById('themeBtn').innerText = i18n[currentLang]['themeBtn'];
+            }
+            localStorage.setItem('pluginTheme', dark ? 'dark' : 'light');
+        }
+
+        window.toggleTheme = function() {
+            isDark = !isDark;
+            applyTheme(isDark);
+        };
+
         // 背景上传
-        async function uploadBackground() {
+        window.uploadBackground = async function() {
             const fileInput = document.getElementById('bgFile');
             const file = fileInput.files[0];
             if (!file) {
@@ -634,7 +913,7 @@
             formData.append('file', file);
 
             const statusDiv = document.getElementById('uploadStatus');
-            statusDiv.innerHTML = '上传中...';
+            statusDiv.innerHTML = i18n[currentLang]['uploading'] || '上传中...';
             statusDiv.style.color = '#007bff';
 
             try {
@@ -649,25 +928,113 @@
                 const result = await response.json();
 
                 if (response.ok && result.status === 'success') {
-                    statusDiv.innerHTML = '(｡•̀ᴗ-)✧ 上传成功！页面即将刷新...';
+                    statusDiv.innerHTML = i18n[currentLang]['upload_success'];
                     statusDiv.style.color = '#28a745';
-                    // 刷新页面以显示新背景
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    statusDiv.innerHTML = '(╥﹏╥) 上传失败：' + (result.message || '未知错误');
+                    statusDiv.innerHTML = i18n[currentLang]['upload_fail'].replace('{{0}}', result.message || '');
                     statusDiv.style.color = '#dc3545';
                 }
             } catch (error) {
-                statusDiv.innerHTML = '(╥﹏╥) 上传失败：网络错误';
+                statusDiv.innerHTML = i18n[currentLang]['upload_fail'].replace('{{0}}', '网络错误');
                 statusDiv.style.color = '#dc3545';
                 console.error('Upload error:', error);
             }
-        }
-
-        // 初始化时执行一次过滤（如果有默认值）
-        window.onload = function() {
-            filterPlugins();
         };
+
+        // ---------- 背景设置面板折叠函数 ----------
+        (function() {
+            const panelContent = document.getElementById('panelContent');
+            const panelArrow = document.getElementById('panelArrow');
+            
+            // 从 localStorage 读取折叠状态，默认收起（false）
+            const isExpanded = localStorage.getItem('bgPanelExpanded') === 'true';
+            
+            function setInitialState(expanded) {
+                if (expanded) {
+                    panelContent.classList.add('expanded');
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+                    panelArrow.classList.add('expanded');
+                    panelArrow.textContent = '▼';
+                } else {
+                    panelContent.classList.remove('expanded');
+                    panelContent.style.maxHeight = '0';
+                    panelArrow.classList.remove('expanded');
+                    panelArrow.textContent = '▶';
+                }
+            }
+            
+            function togglePanel(expanded) {
+                if (expanded) {
+                    panelContent.classList.add('expanded');
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+                    panelArrow.classList.add('expanded');
+                    panelArrow.textContent = '▼';
+                } else {
+                    panelContent.classList.remove('expanded');
+                    panelContent.style.maxHeight = '0';
+                    panelArrow.classList.remove('expanded');
+                    panelArrow.textContent = '▶';
+                }
+            }
+            
+            setInitialState(isExpanded);
+            
+            window.togglePanel = function() {
+                const currentlyExpanded = panelContent.classList.contains('expanded');
+                const newState = !currentlyExpanded;
+                togglePanel(newState);
+                localStorage.setItem('bgPanelExpanded', newState);
+            };
+            
+            window.addEventListener('resize', function() {
+                if (panelContent.classList.contains('expanded')) {
+                    panelContent.style.maxHeight = panelContent.scrollHeight + 'px';
+                }
+            });
+        })();
+
+        // 初始化
+        (function() {
+            applyLanguage(currentLang);
+            isDark = localStorage.getItem('pluginTheme') === 'dark';
+            applyTheme(isDark);
+            initPluginCollapse();
+
+            // 透明度滑块
+            const slider = document.getElementById('opacitySlider');
+            const valueSpan = document.getElementById('opacityValue');
+            const root = document.documentElement;
+            const savedOpacity = localStorage.getItem('pluginBgOpacity');
+            if (savedOpacity !== null) {
+                const opacity = parseFloat(savedOpacity);
+                if (!isNaN(opacity) && opacity >= 0 && opacity <= 1) {
+                    slider.value = opacity;
+                    root.style.setProperty('--plugin-bg-opacity', opacity);
+                    valueSpan.textContent = Math.round(opacity * 100) + '%';
+                }
+            }
+            slider.addEventListener('input', function() {
+                const val = parseFloat(slider.value);
+                root.style.setProperty('--plugin-bg-opacity', val);
+                valueSpan.textContent = Math.round(val * 100) + '%';
+                localStorage.setItem('pluginBgOpacity', val);
+            });
+
+            // 搜索框事件
+            document.getElementById('searchInput').addEventListener('input', filterPlugins);
+            filterPlugins();
+        })();
+
+        function showSaveStatus(message, isSuccess) {
+            const status = document.getElementById('saveStatus');
+            status.textContent = message;
+            status.className = 'save-status ' + (isSuccess ? 'success' : 'error');
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
     </script>
 </body>
 </html>
