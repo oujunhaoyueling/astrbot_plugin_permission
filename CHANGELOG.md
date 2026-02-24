@@ -18,3 +18,5 @@
 ## 修复login界面 Internet server error
 # v1.4.3
 ## 重构了login.html
+# v1.4.4
+## 添加2FA验证，可自行设置开启（虽然没什么用）
