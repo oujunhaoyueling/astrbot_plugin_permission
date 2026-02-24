@@ -16,3 +16,5 @@
 ## 优化webui，提供双语切换，添加模糊搜索，过渡动画以及暗色模式
 # v1.4.2
 ## 修复login界面 Internet server error
+# v1.4.3
+## 重构了login.html
