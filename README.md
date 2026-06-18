@@ -33,7 +33,7 @@ This plugin provides **command-level permission control** for AstrBot, and can *
    将本插件仓库克隆至 `data/plugins/` 目录：
    ```bash
    cd data/plugins
-   git clone https://github.com/oujunhaoyueling/astrbot_plugin_permission.git
+   git clone https://github.com/qiyueling2716/astrbot_plugin_permission.git
    ```
 2. Restart AstrBot or reload the plugin.  
    重启 AstrBot 或重载插件。
